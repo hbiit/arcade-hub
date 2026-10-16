@@ -590,7 +590,9 @@ class MahjongEngine extends BaseGameEngine_1.BaseGameEngine {
             }
             this.updateBots(deltaSeconds);
         }
-        this.onStateUpdate(this.state);
+        if (typeof this.onStateUpdate === 'function') {
+            this.onStateUpdate(this.state);
+        }
     }
     pushEvent(evt) {
         this.state.events.push(evt);

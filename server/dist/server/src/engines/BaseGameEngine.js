@@ -6,10 +6,10 @@ class BaseGameEngine {
     players;
     state;
     onStateUpdate;
-    constructor(roomCode, onStateUpdate) {
-        this.roomCode = roomCode;
+    constructor(roomCode = 'SOLO_ROOM', onStateUpdate = () => { }) {
+        this.roomCode = roomCode || 'SOLO_ROOM';
         this.players = new Map();
-        this.onStateUpdate = onStateUpdate;
+        this.onStateUpdate = typeof onStateUpdate === 'function' ? onStateUpdate : () => { };
         this.state = this.initializeState();
     }
     registerPlayer(player) {

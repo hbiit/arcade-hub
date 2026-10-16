@@ -39,6 +39,11 @@ export const GlowballCanvas: React.FC<{ socket: Socket; room: RoomState<any> }> 
   const screenShakeRef = useRef<number>(0);
   const processedEventsRef = useRef<Set<string>>(new Set());
   const [dashAvailable, setDashAvailable] = useState<boolean>(true);
+  const roomRef = useRef<RoomState<any>>(room);
+
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
 
   // Keyboard controls
   useEffect(() => {
@@ -229,7 +234,7 @@ export const GlowballCanvas: React.FC<{ socket: Socket; room: RoomState<any> }> 
       ctx.lineWidth = 3;
       ctx.strokeRect(6, 6, width - 12, height - 12);
 
-      const gameData = room.gameData;
+      const gameData = roomRef.current.gameData;
       if (gameData) {
         // Draw EMP Hazards
         for (const h of gameData.hazards || []) {
@@ -436,7 +441,7 @@ export const GlowballCanvas: React.FC<{ socket: Socket; room: RoomState<any> }> 
 
     animationFrameId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [room.gameData]);
+  }, []);
 
   const handleVirtualMove = (dx: number, dy: number) => {
     socket.emit(SOCKET_EVENTS.GAME_INPUT, {

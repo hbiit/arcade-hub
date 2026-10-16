@@ -555,7 +555,9 @@ class MahjongSolitaireEngine extends BaseGameEngine_1.BaseGameEngine {
             this.botTimer = 0;
             this.simulateBotAction();
         }
-        this.onStateUpdate(this.state);
+        if (typeof this.onStateUpdate === 'function') {
+            this.onStateUpdate(this.state);
+        }
     }
     simulateBotAction() {
         const bots = Object.values(this.state.players).filter(p => p.id.startsWith('bot_'));

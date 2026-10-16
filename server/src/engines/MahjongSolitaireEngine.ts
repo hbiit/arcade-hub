@@ -683,7 +683,9 @@ export class MahjongSolitaireEngine extends BaseGameEngine<MahjongSolitaireState
       this.simulateBotAction();
     }
 
-    this.onStateUpdate(this.state);
+    if (typeof this.onStateUpdate === 'function') {
+      this.onStateUpdate(this.state);
+    }
   }
 
   private simulateBotAction(): void {

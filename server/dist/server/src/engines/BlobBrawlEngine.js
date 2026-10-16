@@ -383,7 +383,9 @@ class BlobBrawlEngine extends BaseGameEngine_1.BaseGameEngine {
                 }
             }
         }
-        this.onStateUpdate(this.state);
+        if (typeof this.onStateUpdate === 'function') {
+            this.onStateUpdate(this.state);
+        }
     }
 }
 exports.BlobBrawlEngine = BlobBrawlEngine;

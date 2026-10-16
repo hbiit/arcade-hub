@@ -469,6 +469,8 @@ export class BlobBrawlEngine extends BaseGameEngine<BlobBrawlState> {
       }
     }
 
-    this.onStateUpdate(this.state);
+    if (typeof this.onStateUpdate === 'function') {
+      this.onStateUpdate(this.state);
+    }
   }
 }

@@ -32,6 +32,11 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
   const screenShakeRef = useRef<number>(0);
   const processedEventsRef = useRef<Set<string>>(new Set());
   const [dashAvailable, setDashAvailable] = useState<boolean>(true);
+  const roomRef = useRef<RoomState<any>>(room);
+
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
 
   // Keyboard controls
   useEffect(() => {
@@ -229,7 +234,7 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
       ctx.lineWidth = 4;
       ctx.strokeRect(4, 4, width - 8, height - 8);
 
-      const gameData = room.gameData;
+      const gameData = roomRef.current.gameData;
       if (gameData) {
         // Draw Power-ups
         for (const pwr of gameData.powerups || []) {
@@ -511,7 +516,7 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
 
     animationFrameId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [room.gameData]);
+  }, []);
 
   // Touch / Mobile virtual directional control
   const handleVirtualMove = (dx: number, dy: number) => {

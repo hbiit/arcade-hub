@@ -103,10 +103,12 @@ export const App: React.FC = () => {
     socket.emit = (event: string, ...args: any[]) => {
       if (localRunnerRef.current) {
         if (event === SOCKET_EVENTS.GAME_INPUT) {
-          const payload = args[0]?.input || args[0];
+          const payload = args[0]?.input !== undefined ? args[0].input : args[0];
           localRunnerRef.current.handleInput(socket.id || 'local_player', payload);
         } else if (event === SOCKET_EVENTS.GAME_PAUSE_TOGGLE) {
           localRunnerRef.current.togglePause();
+        } else if (event === SOCKET_EVENTS.GAME_START) {
+          localRunnerRef.current.start();
         }
       }
       return origEmit(event, ...args);
@@ -439,7 +441,13 @@ export const App: React.FC = () => {
 
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <button
-                onClick={() => socket.emit(SOCKET_EVENTS.GAME_START, { roomCode: activeRoom.roomCode })}
+                onClick={() => {
+                  if (localRunnerRef.current) {
+                    localRunnerRef.current.start();
+                  } else {
+                    socket.emit(SOCKET_EVENTS.GAME_START, { roomCode: activeRoom.roomCode });
+                  }
+                }}
                 style={glowPrimaryBtnStyle}
               >
                 🚀 Launch Match Now

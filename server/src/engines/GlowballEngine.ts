@@ -347,6 +347,8 @@ export class GlowballEngine extends BaseGameEngine<GlowballState> {
       }
     }
 
-    this.onStateUpdate(this.state);
+    if (typeof this.onStateUpdate === 'function') {
+      this.onStateUpdate(this.state);
+    }
   }
 }

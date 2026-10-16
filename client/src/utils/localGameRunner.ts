@@ -10,18 +10,40 @@ export class LocalGameRunner {
   private intervalId: any = null;
   private state: RoomState<any>;
   private onUpdate: (room: RoomState<any>) => void;
+  private playerSocketId: string;
 
   constructor(gameId: GameId, playerSession: PlayerSession, onUpdate: (room: RoomState<any>) => void) {
     this.onUpdate = onUpdate;
+    this.playerSocketId = playerSession.socketId || 'local_player';
 
-    if (gameId === 'blob') this.engine = new BlobBrawlEngine();
-    else if (gameId === 'glowball') this.engine = new GlowballEngine();
-    else if (gameId === 'accg') this.engine = new ACCGEngine();
-    else if (gameId === 'mahjong') this.engine = new MahjongEngine();
-    else this.engine = new MahjongSolitaireEngine();
+    const roomCode = 'SOLO_' + Math.random().toString(36).substring(2, 6).toUpperCase();
 
-    const initialGameData = this.engine.initializeState();
-    this.engine.registerPlayer(playerSession);
+    const onEngineUpdate = (engineData: any) => {
+      if (this.state) {
+        this.state.gameData = engineData;
+        this.onUpdate({ ...this.state });
+      }
+    };
+
+    if (gameId === 'blob') {
+      this.engine = new BlobBrawlEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'glowball') {
+      this.engine = new GlowballEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'accg') {
+      this.engine = new ACCGEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'mahjong') {
+      this.engine = new MahjongEngine(roomCode, onEngineUpdate);
+    } else {
+      this.engine = new MahjongSolitaireEngine(roomCode, onEngineUpdate);
+    }
+
+    const cleanSession: PlayerSession = {
+      ...playerSession,
+      socketId: this.playerSocketId
+    };
+    this.engine.registerPlayer(cleanSession);
+
+    const initialGameData = this.engine.getState();
 
     const durations: Record<GameId, number> = {
       blob: 60,
@@ -35,22 +57,26 @@ export class LocalGameRunner {
     };
 
     this.state = {
-      roomCode: 'SOLO_' + Math.random().toString(36).substring(2, 6).toUpperCase(),
+      roomCode,
       gameId,
-      hostSocketId: playerSession.socketId,
+      hostSocketId: this.playerSocketId,
       status: 'in_progress',
-      players: { [playerSession.socketId]: playerSession },
+      players: { [this.playerSocketId]: cleanSession },
       gameData: initialGameData,
       timeRemaining: durations[gameId] || 60
     };
   }
 
   public start(): void {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
     let lastTime = Date.now();
     this.intervalId = setInterval(() => {
       if (this.state.status !== 'in_progress') return;
       const now = Date.now();
-      const dt = (now - lastTime) / 1000;
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
       this.state.timeRemaining = Math.max(0, this.state.timeRemaining - dt);
@@ -64,15 +90,19 @@ export class LocalGameRunner {
           this.state.winnerSocketId = sorted[0].socketId;
         }
         clearInterval(this.intervalId);
+        this.intervalId = null;
       }
 
       this.onUpdate({ ...this.state });
-    }, 50); // 20Hz
+    }, 50); // 20Hz Authoritative Loop
   }
 
   public handleInput(socketId: string, payload: any): void {
     if (this.engine && this.state.status === 'in_progress') {
-      this.engine.handleInput(socketId, payload);
+      const cleanPayload = payload?.input !== undefined ? payload.input : payload;
+      this.engine.handleInput(this.playerSocketId, cleanPayload);
+      this.state.gameData = this.engine.getState();
+      this.onUpdate({ ...this.state });
     }
   }
 

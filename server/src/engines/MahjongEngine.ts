@@ -716,8 +716,9 @@ export class MahjongEngine extends BaseGameEngine<TableMahjongState> {
       }
       this.updateBots(deltaSeconds);
     }
-
-    this.onStateUpdate(this.state);
+    if (typeof this.onStateUpdate === 'function') {
+      this.onStateUpdate(this.state);
+    }
   }
 
   private pushEvent(evt: { id: string; text: string; color: string; timestamp: number }): void {

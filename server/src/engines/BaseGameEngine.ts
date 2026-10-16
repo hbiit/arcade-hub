@@ -6,10 +6,10 @@ export abstract class BaseGameEngine<TState = any> {
   protected state: TState;
   protected onStateUpdate: (state: TState) => void;
 
-  constructor(roomCode: string, onStateUpdate: (state: TState) => void) {
-    this.roomCode = roomCode;
+  constructor(roomCode: string = 'SOLO_ROOM', onStateUpdate: (state: TState) => void = () => {}) {
+    this.roomCode = roomCode || 'SOLO_ROOM';
     this.players = new Map();
-    this.onStateUpdate = onStateUpdate;
+    this.onStateUpdate = typeof onStateUpdate === 'function' ? onStateUpdate : () => {};
     this.state = this.initializeState();
   }
 

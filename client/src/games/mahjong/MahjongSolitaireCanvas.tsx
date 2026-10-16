@@ -68,7 +68,7 @@ interface Props {
 
 export const MahjongSolitaireCanvas: React.FC<Props> = ({ socket, room }) => {
   const gameState = room.gameData;
-  const myPlayer = socket.id ? gameState?.players?.[socket.id] : undefined;
+  const myPlayer = (socket.id ? gameState?.players?.[socket.id] : undefined) || Object.values(gameState?.players || {})[0];
   const [hoveredTileId, setHoveredTileId] = useState<string | null>(null);
   const [animatingMatch, setAnimatingMatch] = useState<{
     t1: SolitaireTile;
@@ -116,16 +116,14 @@ export const MahjongSolitaireCanvas: React.FC<Props> = ({ socket, room }) => {
     SoundFX.playTileClick();
     socket.emit(SOCKET_EVENTS.GAME_INPUT, {
       roomCode: room.roomCode,
-      action: 'selectTile',
-      tileId: tile.id
+      input: { action: 'selectTile', tileId: tile.id }
     });
   };
 
   const handlePowerup = (powerupId: 'lightning' | 'freeze' | 'shuffle') => {
     socket.emit(SOCKET_EVENTS.GAME_INPUT, {
       roomCode: room.roomCode,
-      action: 'powerup',
-      powerupId
+      input: { action: 'powerup', powerupId }
     });
   };
 
