@@ -1,4 +1,4 @@
-export type GameId = 'blob' | 'glowball' | 'accg' | 'mahjong' | 'mahjong-solitaire' | 'mahjong_solitaire' | 'brick_breaker' | 'checkers' | 'cyber_slither' | 'galaxy_strike' | 'party_blitz';
+export type GameId = 'blob' | 'glowball' | 'accg' | 'mahjong' | 'mahjong-solitaire' | 'brick_breaker' | 'checkers' | 'cyber_slither' | 'galaxy_strike';
 
 export interface UserProfile {
   id: string;
@@ -22,7 +22,7 @@ export interface PlayerSession {
 export interface GameMetadata {
   id: GameId;
   title: string;
-  category?: 'Arena Action' | 'Tactical Strategy' | 'Party & Trivia' | 'Puzzle & Board';
+  category?: 'Arena Action' | 'Tactical Strategy' | 'Party & Trivia' | 'Puzzle & Board' | 'Puzzle & Arcade';
   minPlayers: number;
   maxPlayers: number;
   durationSeconds: number;

@@ -63,12 +63,10 @@ export class LocalGameRunner {
       accg: 120,
       mahjong: 90,
       'mahjong-solitaire': 90,
-      mahjong_solitaire: 90,
       brick_breaker: 90,
       checkers: 180,
       cyber_slither: 90,
-      galaxy_strike: 90,
-      party_blitz: 60
+      galaxy_strike: 90
     };
 
     this.state = {

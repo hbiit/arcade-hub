@@ -111,7 +111,7 @@ const DEFAULT_GAMES: GameMetadata[] = [
   {
     id: 'brick_breaker',
     title: 'Break Breaker Overcharge',
-    category: 'Puzzle & Arcade',
+    category: 'Puzzle & Board',
     minPlayers: 1,
     maxPlayers: 4,
     durationSeconds: 90,
@@ -460,9 +460,10 @@ export const App: React.FC = () => {
 
   const filteredGames = games.filter(g => {
     if (activeCategory === 'all') return true;
-    if (activeCategory === 'action') return g.category.includes('Action') || g.id === 'galaxy_strike' || g.id === 'cyber_slither';
-    if (activeCategory === 'strategy') return g.category.includes('Strategy') || g.id === 'checkers';
-    if (activeCategory === 'puzzle') return g.category.includes('Puzzle') || g.id === 'brick_breaker' || g.category.includes('Board');
+    const cat = g.category || '';
+    if (activeCategory === 'action') return cat.includes('Action') || g.id === 'galaxy_strike' || g.id === 'cyber_slither';
+    if (activeCategory === 'strategy') return cat.includes('Strategy') || g.id === 'checkers';
+    if (activeCategory === 'puzzle') return cat.includes('Puzzle') || g.id === 'brick_breaker' || cat.includes('Board');
     return true;
   });
 
@@ -1232,7 +1233,7 @@ export const App: React.FC = () => {
   // SUB-RENDER: GAME MANUAL & HOW-TO-PLAY MODAL
   // ----------------------------------------------------
   function renderManualModal() {
-    const manualContent: Record<GameId, {
+    const manualContent: Record<string, {
       title: string;
       category: string;
       objective: string;
