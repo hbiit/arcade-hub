@@ -34,27 +34,55 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
   const [dashAvailable, setDashAvailable] = useState<boolean>(true);
   const roomRef = useRef<RoomState<any>>(room);
 
+  // Pointer drag steering
+  const isPointerDownRef = useRef<boolean>(false);
+  const pointerPosRef = useRef<{ x: number; y: number } | null>(null);
+
   useEffect(() => {
     roomRef.current = room;
   }, [room]);
 
-  // Keyboard controls
+  // Keyboard controls & Continuous Input Loop
   useEffect(() => {
     const keys: Record<string, boolean> = {};
 
     const emitInput = (dash = false) => {
-      const dx = (keys['ArrowRight'] || keys['KeyD'] ? 1 : 0) - (keys['ArrowLeft'] || keys['KeyA'] ? 1 : 0);
-      const dy = (keys['ArrowDown'] || keys['KeyS'] ? 1 : 0) - (keys['ArrowUp'] || keys['KeyW'] ? 1 : 0);
+      let dx = (keys['ArrowRight'] || keys['KeyD'] ? 1 : 0) - (keys['ArrowLeft'] || keys['KeyA'] ? 1 : 0);
+      let dy = (keys['ArrowDown'] || keys['KeyS'] ? 1 : 0) - (keys['ArrowUp'] || keys['KeyW'] ? 1 : 0);
+
+      // If pointer is held down, steer towards pointer
+      if (isPointerDownRef.current && pointerPosRef.current && canvasRef.current) {
+        const myId = socket.id || 'local_player';
+        const myPlayer = (myId ? roomRef.current.gameData?.players?.[myId] : undefined) || Object.values<any>(roomRef.current.gameData?.players || {})[0];
+        if (myPlayer) {
+          const toX = pointerPosRef.current.x - myPlayer.x;
+          const toY = pointerPosRef.current.y - myPlayer.y;
+          const dist = Math.hypot(toX, toY);
+          if (dist > 16) {
+            dx = toX / dist;
+            dy = toY / dist;
+          } else {
+            dx = 0;
+            dy = 0;
+          }
+        }
+      }
+
       socket.emit(SOCKET_EVENTS.GAME_INPUT, {
         roomCode: room.roomCode,
         input: { dx, dy, dash }
       });
+
       if (dash) {
         SoundFX.playDash();
         setDashAvailable(false);
-        setTimeout(() => setDashAvailable(true), 2200);
+        setTimeout(() => setDashAvailable(true), 2000);
       }
     };
+
+    const interval = setInterval(() => {
+      emitInput(false);
+    }, 50);
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
@@ -63,19 +91,17 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
       keys[e.code] = true;
       if (e.code === 'Space') {
         emitInput(true);
-      } else {
-        emitInput(false);
       }
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
       keys[e.code] = false;
-      emitInput(false);
     };
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     return () => {
+      clearInterval(interval);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
@@ -88,26 +114,23 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
       if (processedEventsRef.current.has(evt.id)) continue;
       processedEventsRef.current.add(evt.id);
 
-      // Keep set size manageable
       if (processedEventsRef.current.size > 200) {
         processedEventsRef.current.clear();
       }
 
-      // Trigger Floating Text
       floatingTextsRef.current.push({
         id: evt.id,
         x: evt.x,
-        y: evt.y - 10,
+        y: evt.y - 12,
         text: evt.text,
         color: evt.color || '#ffe600',
         alpha: 1.0,
-        vy: -1.6
+        vy: -2.0
       });
 
       if (evt.type === 'coin') {
         SoundFX.playCoin();
-        // Golden sparkle particles
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 6; i++) {
           const angle = Math.random() * Math.PI * 2;
           const spd = Math.random() * 80 + 30;
           particlesRef.current.push({
@@ -122,20 +145,37 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
             maxLife: 0.4
           });
         }
+      } else if (evt.type === 'combo') {
+        SoundFX.playPowerup();
+        screenShakeRef.current = Math.max(screenShakeRef.current, 8);
+        for (let i = 0; i < 18; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = Math.random() * 160 + 50;
+          particlesRef.current.push({
+            x: evt.x,
+            y: evt.y,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd,
+            size: Math.random() * 6 + 3,
+            color: evt.color || '#ffe600',
+            alpha: 1.0,
+            life: 0,
+            maxLife: 0.6
+          });
+        }
       } else if (evt.type === 'bump') {
         SoundFX.playBump();
-        screenShakeRef.current = Math.max(screenShakeRef.current, 6);
-        // Bump spark burst
-        for (let i = 0; i < 10; i++) {
+        screenShakeRef.current = Math.max(screenShakeRef.current, 8);
+        for (let i = 0; i < 14; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const spd = Math.random() * 120 + 40;
+          const spd = Math.random() * 140 + 40;
           particlesRef.current.push({
             x: evt.x,
             y: evt.y,
             vx: Math.cos(angle) * spd,
             vy: Math.sin(angle) * spd,
             size: Math.random() * 5 + 3,
-            color: evt.color || '#f97316',
+            color: '#f59e0b',
             alpha: 1.0,
             life: 0,
             maxLife: 0.45
@@ -143,29 +183,28 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
         }
       } else if (evt.type === 'knockout') {
         SoundFX.playKnockout();
-        screenShakeRef.current = 14;
-        // Giant Star Explosion
-        for (let i = 0; i < 26; i++) {
+        screenShakeRef.current = 15;
+        for (let i = 0; i < 30; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const spd = Math.random() * 180 + 60;
+          const spd = Math.random() * 200 + 60;
           particlesRef.current.push({
             x: evt.x,
             y: evt.y,
             vx: Math.cos(angle) * spd,
             vy: Math.sin(angle) * spd,
-            size: Math.random() * 8 + 4,
-            color: ['#ef4444', '#f59e0b', '#ffe600', '#ec4899'][i % 4],
+            size: Math.random() * 8 + 3,
+            color: '#ef4444',
             alpha: 1.0,
             life: 0,
-            maxLife: 0.8
+            maxLife: 0.7
           });
         }
       } else if (evt.type === 'powerup') {
         SoundFX.playPowerup();
-        screenShakeRef.current = 4;
-        for (let i = 0; i < 14; i++) {
+        screenShakeRef.current = Math.max(screenShakeRef.current, 6);
+        for (let i = 0; i < 16; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const spd = Math.random() * 100 + 40;
+          const spd = Math.random() * 120 + 40;
           particlesRef.current.push({
             x: evt.x,
             y: evt.y,
@@ -175,14 +214,14 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
             color: evt.color || '#00e5ff',
             alpha: 1.0,
             life: 0,
-            maxLife: 0.6
+            maxLife: 0.5
           });
         }
       }
     }
   }, [room.gameData?.events]);
 
-  // 60 FPS Canvas Game Loop
+  // 60 FPS Render Loop
   useEffect(() => {
     let animationFrameId: number;
     let lastTime = performance.now();
@@ -199,7 +238,6 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
       const width = canvas.width;
       const height = canvas.height;
 
-      // Handle Screen Shake
       ctx.save();
       if (screenShakeRef.current > 0) {
         const shakeX = (Math.random() - 0.5) * screenShakeRef.current * 1.8;
@@ -208,304 +246,259 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
         screenShakeRef.current = Math.max(0, screenShakeRef.current - dt * 20);
       }
 
-      // Draw Sci-Fi Cyber Grid Arena Background
-      ctx.fillStyle = '#080c16';
+      // Rich Cyber Arena Backdrop
+      ctx.fillStyle = '#090d16';
       ctx.fillRect(0, 0, width, height);
 
-      // Arena Grid Lines
-      ctx.strokeStyle = '#121b2d';
+      // Grid Lines
+      ctx.strokeStyle = '#1e293b44';
       ctx.lineWidth = 1;
-      const gridSize = 40;
-      for (let x = 0; x < width; x += gridSize) {
+      for (let x = 0; x < width; x += 40) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
       }
-      for (let y = 0; y < height; y += gridSize) {
+      for (let y = 0; y < height; y += 40) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
       }
 
-      // Arena Outer Neon Border
-      ctx.strokeStyle = '#00e5ff33';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(4, 4, width - 8, height - 8);
+      // Glowing Arena Border
+      ctx.strokeStyle = '#00e5ff55';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(6, 6, width - 12, height - 12);
 
       const gameData = roomRef.current.gameData;
       if (gameData) {
-        // Draw Power-ups
+        // Draw Powerups
         for (const pwr of gameData.powerups || []) {
-          const pulse = Math.sin(time * 0.006) * 3;
+          const pColor = pwr.type === 'speed' ? '#00e5ff' : pwr.type === 'magnet' ? '#f59e0b' : '#10b981';
+          const pSymbol = pwr.type === 'speed' ? '⚡' : pwr.type === 'magnet' ? '🧲' : '🛡️';
+          const pulse = Math.sin(time * 0.008 + pwr.id) * 3;
+
           ctx.save();
           ctx.translate(pwr.x, pwr.y);
 
-          // Glow halo
-          const glowGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, 22 + pulse);
-          const pwrColor = pwr.type === 'speed' ? '#00e5ff' : pwr.type === 'magnet' ? '#f59e0b' : '#10b981';
-          glowGrad.addColorStop(0, pwrColor + 'aa');
-          glowGrad.addColorStop(1, pwrColor + '00');
+          const glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 22 + pulse);
+          glowGrad.addColorStop(0, pColor);
+          glowGrad.addColorStop(0.6, `${pColor}55`);
+          glowGrad.addColorStop(1, `${pColor}00`);
           ctx.fillStyle = glowGrad;
           ctx.beginPath();
-          ctx.arc(0, 0, 24 + pulse, 0, Math.PI * 2);
+          ctx.arc(0, 0, 22 + pulse, 0, Math.PI * 2);
           ctx.fill();
 
-          // Hexagonal / Rounded Box
           ctx.fillStyle = '#0f172a';
-          ctx.strokeStyle = pwrColor;
-          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, 15, 0, Math.PI * 2);
+          ctx.arc(0, 0, 16, 0, Math.PI * 2);
           ctx.fill();
+          ctx.strokeStyle = pColor;
+          ctx.lineWidth = 2.5;
           ctx.stroke();
 
-          // Icon
-          ctx.font = '14px sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '14px system-ui';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          const icon = pwr.type === 'speed' ? '⚡' : pwr.type === 'magnet' ? '🧲' : '🛡️';
-          ctx.fillText(icon, 0, 1);
+          ctx.fillText(pSymbol, 0, 0);
           ctx.restore();
         }
 
-        // Draw Golden Coins with Spin Animation
+        // Draw Golden Mega-Coin if active
+        if (gameData.megaCoin) {
+          const mc = gameData.megaCoin;
+          const starPulse = Math.sin(time * 0.01) * 4;
+          ctx.save();
+          ctx.translate(mc.x, mc.y);
+
+          const starGlow = ctx.createRadialGradient(0, 0, 4, 0, 0, 32 + starPulse);
+          starGlow.addColorStop(0, '#ffe600');
+          starGlow.addColorStop(0.5, 'rgba(255, 230, 0, 0.5)');
+          starGlow.addColorStop(1, 'rgba(255, 230, 0, 0)');
+          ctx.fillStyle = starGlow;
+          ctx.beginPath();
+          ctx.arc(0, 0, 32 + starPulse, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffe600';
+          ctx.font = 'bold 24px Orbitron, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⭐', 0, 0);
+
+          ctx.font = 'bold 11px Orbitron, sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText('+3 COINS', 0, 24);
+          ctx.restore();
+        }
+
+        // Draw Standard Coins
         for (const coin of gameData.coins || []) {
-          const wobble = Math.abs(Math.sin(time * 0.005 + coin.id)) * 0.4 + 0.6;
+          const pulse = Math.sin(time * 0.006 + coin.id) * 1.5;
           ctx.save();
           ctx.translate(coin.x, coin.y);
 
-          // Golden ambient glow
-          ctx.fillStyle = '#ffe60022';
+          const coinGlow = ctx.createRadialGradient(0, 0, 2, 0, 0, 14 + pulse);
+          coinGlow.addColorStop(0, '#ffe60088');
+          coinGlow.addColorStop(1, '#ffe60000');
+          ctx.fillStyle = coinGlow;
           ctx.beginPath();
-          ctx.arc(0, 0, 14, 0, Math.PI * 2);
+          ctx.arc(0, 0, 14 + pulse, 0, Math.PI * 2);
           ctx.fill();
 
-          // Coin ellipse for 3D spin feel
+          ctx.fillStyle = '#ffe600';
           ctx.beginPath();
-          ctx.ellipse(0, 0, 9 * wobble, 9, 0, 0, Math.PI * 2);
-          const coinGrad = ctx.createLinearGradient(-9, -9, 9, 9);
-          coinGrad.addColorStop(0, '#fff566');
-          coinGrad.addColorStop(0.5, '#ffd700');
-          coinGrad.addColorStop(1, '#d97706');
-          ctx.fillStyle = coinGrad;
+          ctx.arc(0, 0, 10, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#b45309';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
 
-          // Centered symbol
-          if (wobble > 0.4) {
-            ctx.fillStyle = '#78350f';
-            ctx.font = 'bold 8px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('$', 0, 0);
-          }
+          ctx.fillStyle = '#d97706';
+          ctx.beginPath();
+          ctx.arc(0, 0, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 9px Orbitron, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('$', 0, 0);
+
           ctx.restore();
         }
 
-        // Find Current 1st Place Leader for Crown
-        const playersList = Object.values<any>(gameData.players || {});
-        let leader: any = null;
-        let maxCoins = -1;
-        for (const p of playersList) {
-          if (p.coinsCarried > maxCoins && p.coinsCarried > 0) {
-            maxCoins = p.coinsCarried;
-            leader = p;
-          }
-        }
-
-        // Draw Blobs (Jelly Physics + Googly Eyes + Effects)
-        for (const p of playersList) {
+        // Draw Players with Squash & Stretch Wobble
+        const players = gameData.players || {};
+        for (const [id, p] of Object.entries<any>(players)) {
           ctx.save();
           ctx.translate(p.x, p.y);
 
-          // Calculate movement velocity & squash angle
-          const speed = Math.hypot(p.vx, p.vy);
-          const moveAngle = speed > 5 ? Math.atan2(p.vy, p.vx) : 0;
-          const squash = Math.min(0.25, speed / 800); // dynamic squish factor
-
-          // Dash trail / Speed Boost flames
-          if ((p.dashTimer || 0) > 0 || p.activePowerup === 'speed') {
-            const trailAngle = moveAngle + Math.PI;
-            ctx.save();
-            ctx.rotate(trailAngle);
-            ctx.fillStyle = p.activePowerup === 'speed' ? '#00e5ff66' : p.color + '66';
-            ctx.beginPath();
-            ctx.moveTo(0, -10);
-            ctx.lineTo(24, 0);
-            ctx.lineTo(0, 10);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
+          if (p.isKnockedOut) {
+            ctx.globalAlpha = 0.35;
+            ctx.font = 'bold 14px system-ui';
+            ctx.fillStyle = '#ef4444';
+            ctx.textAlign = 'center';
+            ctx.fillText('KO (Respawning...)', 0, -28);
           }
 
-          // Active Powerup Auras
+          const spd = Math.hypot(p.vx, p.vy);
+          const moveAngle = Math.atan2(p.vy, p.vx) || 0;
+          ctx.rotate(moveAngle);
+
+          // Squash & stretch based on velocity
+          const stretch = Math.min(1.35, 1 + spd * 0.0006);
+          const squash = 1 / stretch;
+          ctx.scale(stretch, squash);
+
+          // Active Shield Bubble
           if (p.activePowerup === 'shield') {
             ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(0, 0, 26, 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (p.activePowerup === 'magnet') {
-            ctx.strokeStyle = '#f59e0b88';
-            ctx.setLineDash([4, 4]);
-            ctx.lineWidth = 2;
-            ctx.beginPath();
             ctx.arc(0, 0, 28, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Active Magnet Ring
+          if (p.activePowerup === 'magnet') {
+            ctx.strokeStyle = '#f59e0b88';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(0, 0, 32, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
           }
 
-          // Jelly Blob Body (Squash & Stretch)
-          ctx.rotate(moveAngle);
-          ctx.scale(1 + squash, 1 - squash);
-
-          // Radial Gradient 3D Shading
-          const baseColor = p.isKnockedOut ? '#475569' : p.color || '#3b82f6';
-          const blobGrad = ctx.createRadialGradient(-5, -6, 2, 0, 0, 20);
-          blobGrad.addColorStop(0, '#ffffff88');
-          blobGrad.addColorStop(0.3, baseColor);
-          blobGrad.addColorStop(1, '#090d16');
-
+          // Blob Aura Glow
+          const auraGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, 26);
+          auraGrad.addColorStop(0, `${p.color}88`);
+          auraGrad.addColorStop(1, `${p.color}00`);
+          ctx.fillStyle = auraGrad;
           ctx.beginPath();
-          ctx.arc(0, 0, 19, 0, Math.PI * 2);
-          ctx.fillStyle = blobGrad;
+          ctx.arc(0, 0, 26, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = p.isKnockedOut ? '#334155' : '#ffffffcc';
-          ctx.lineWidth = 2;
+
+          // Blob Body (Scales slightly with carried coins)
+          const radius = Math.min(26, 18 + p.coinsCarried * 0.3);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
           ctx.stroke();
 
-          // Reset squish scale for eyes
-          ctx.scale(1 / (1 + squash), 1 / (1 - squash));
-
-          // Draw Eyes
-          if (p.isKnockedOut) {
-            // Dizzy X X Eyes
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            [-6, 6].forEach(eyeX => {
-              ctx.beginPath();
-              ctx.moveTo(eyeX - 3, -4);
-              ctx.lineTo(eyeX + 3, 2);
-              ctx.moveTo(eyeX + 3, -4);
-              ctx.lineTo(eyeX - 3, 2);
-              ctx.stroke();
-            });
-          } else {
-            // Animated Googly Eyes tracking movement
-            const pupilOffsetX = Math.cos(0) * 2;
-            const pupilOffsetY = Math.sin(0) * 2;
-
-            [-6, 6].forEach(eyeX => {
-              // White eyeball
-              ctx.fillStyle = '#ffffff';
-              ctx.beginPath();
-              ctx.arc(eyeX, -3, 5, 0, Math.PI * 2);
-              ctx.fill();
-
-              // Black pupil looking forward
-              ctx.fillStyle = '#0f172a';
-              ctx.beginPath();
-              ctx.arc(eyeX + pupilOffsetX, -3 + pupilOffsetY, 2.5, 0, Math.PI * 2);
-              ctx.fill();
-
-              // Shiny eye highlight
-              ctx.fillStyle = '#ffffff';
-              ctx.beginPath();
-              ctx.arc(eyeX + pupilOffsetX - 1, -3 + pupilOffsetY - 1, 1, 0, Math.PI * 2);
-              ctx.fill();
-            });
-          }
-
-          ctx.restore(); // restore blob rotation
-
-          // Overhead Elements (Rendered upright without rotation)
-          ctx.save();
-          ctx.translate(p.x, p.y);
-
-          // 👑 1st Place Crown
-          if (leader && leader.name === p.name && !p.isKnockedOut) {
-            ctx.font = '16px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('👑', 0, -36);
-          }
-
-          // Nametag & Coins Badge
-          ctx.font = 'bold 11px system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(-45, -26, 90, 16);
-          ctx.strokeStyle = p.color || '#3b82f6';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(-45, -26, 90, 16);
-
+          // Googly Expressive Eyes
           ctx.fillStyle = '#ffffff';
-          ctx.fillText(`${p.name.slice(0, 9)} 🪙${p.coinsCarried}`, 0, -14);
+          ctx.beginPath();
+          ctx.arc(6, -5, 5, 0, Math.PI * 2);
+          ctx.arc(6, 5, 5, 0, Math.PI * 2);
+          ctx.fill();
 
-          // Knockout warning dots (1 or 2 bumps)
-          if (!p.isKnockedOut && p.bumpsReceived > 0) {
-            for (let b = 0; b < 2; b++) {
-              ctx.fillStyle = b < p.bumpsReceived ? '#ef4444' : '#334155';
-              ctx.beginPath();
-              ctx.arc(-8 + b * 16, 26, 3.5, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(8, -5, 2.5, 0, Math.PI * 2);
+          ctx.arc(8, 5, 2.5, 0, Math.PI * 2);
+          ctx.fill();
 
-          // Dizzy stars when knocked out
-          if (p.isKnockedOut) {
-            const spin = time * 0.008;
-            ctx.font = '13px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('💫', Math.cos(spin) * 16, -34 + Math.sin(spin) * 4);
-          }
+          ctx.restore();
 
+          // Player Name & Coin Count
+          ctx.save();
+          ctx.font = 'bold 12px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#000000';
+          ctx.fillText(`${p.name} (${p.coinsCarried}🪙)`, p.x + 1, p.y - 25);
+          ctx.fillStyle = p.color;
+          ctx.fillText(`${p.name} (${p.coinsCarried}🪙)`, p.x, p.y - 26);
           ctx.restore();
         }
       }
 
-      // Update & Render Particles
-      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
-        const pt = particlesRef.current[i];
-        pt.life += dt;
-        if (pt.life >= pt.maxLife) {
-          particlesRef.current.splice(i, 1);
-          continue;
-        }
-        pt.x += pt.vx * dt;
-        pt.y += pt.vy * dt;
-        pt.alpha = 1 - pt.life / pt.maxLife;
-
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, pt.alpha);
-        ctx.fillStyle = pt.color;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Update & Render Floating Combat Texts
+      // Draw Floating Texts
       for (let i = floatingTextsRef.current.length - 1; i >= 0; i--) {
         const ft = floatingTextsRef.current[i];
         ft.y += ft.vy;
         ft.alpha -= dt * 1.3;
+
         if (ft.alpha <= 0) {
           floatingTextsRef.current.splice(i, 1);
           continue;
         }
 
         ctx.save();
-        ctx.globalAlpha = Math.max(0, ft.alpha);
-        ctx.font = 'bold 13px system-ui, sans-serif';
+        ctx.globalAlpha = ft.alpha;
+        ctx.font = 'bold 14px Orbitron, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#000000';
-        ctx.fillText(ft.text, ft.x + 1, ft.y + 1); // drop shadow
+        ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
         ctx.fillStyle = ft.color;
         ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      // Draw Particles
+      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+        const pt = particlesRef.current[i];
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.life += dt;
+        pt.alpha = Math.max(0, 1 - pt.life / pt.maxLife);
+
+        if (pt.life >= pt.maxLife) {
+          particlesRef.current.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = pt.alpha;
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
@@ -518,12 +511,37 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  // Touch / Mobile virtual directional control
-  const handleVirtualMove = (dx: number, dy: number) => {
-    socket.emit(SOCKET_EVENTS.GAME_INPUT, {
-      roomCode: room.roomCode,
-      input: { dx, dy }
-    });
+  // Pointer drag steering (mouse or touch directly on canvas)
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
+  const handlePointerDown = (e: any) => {
+    isPointerDownRef.current = true;
+    const coords = getCanvasCoords(e);
+    if (coords) pointerPosRef.current = coords;
+  };
+
+  const handlePointerMove = (e: any) => {
+    if (isPointerDownRef.current) {
+      const coords = getCanvasCoords(e);
+      if (coords) pointerPosRef.current = coords;
+    }
+  };
+
+  const handlePointerUp = () => {
+    isPointerDownRef.current = false;
+    pointerPosRef.current = null;
   };
 
   const handleDashClick = () => {
@@ -534,7 +552,7 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
     });
     SoundFX.playDash();
     setDashAvailable(false);
-    setTimeout(() => setDashAvailable(true), 2200);
+    setTimeout(() => setDashAvailable(true), 2000);
   };
 
   return (
@@ -544,108 +562,54 @@ export const BlobBrawlCanvas: React.FC<{ socket: Socket; room: RoomState<any> }>
           ref={canvasRef}
           width={800}
           height={600}
+          onMouseDown={handlePointerDown}
+          onMouseMove={handlePointerMove}
+          onMouseUp={handlePointerUp}
+          onTouchStart={handlePointerDown}
+          onTouchMove={handlePointerMove}
+          onTouchEnd={handlePointerUp}
           style={{
             maxWidth: '100%',
             height: 'auto',
             border: '2px solid #00e5ff',
             borderRadius: 12,
-            boxShadow: '0 0 25px rgba(0, 229, 255, 0.25)',
+            boxShadow: '0 0 30px rgba(0, 229, 255, 0.28)',
             background: '#090d16',
-            display: 'block'
+            display: 'block',
+            cursor: 'crosshair'
           }}
         />
 
-        {/* Dash Cooldown Indicator Overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 16,
-            right: 16,
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center'
-          }}
-        >
+        {/* Dash Button Overlay */}
+        <div style={{ position: 'absolute', bottom: 16, right: 16 }}>
           <button
             onClick={handleDashClick}
             disabled={!dashAvailable}
             style={{
-              padding: '12px 20px',
+              padding: '12px 22px',
               background: dashAvailable ? 'linear-gradient(135deg, #00e5ff, #3b82f6)' : '#334155',
-              color: dashAvailable ? '#000' : '#94a3b8',
+              color: dashAvailable ? '#000000' : '#94a3b8',
               border: 'none',
               borderRadius: 30,
               fontWeight: 800,
               fontSize: 14,
               cursor: dashAvailable ? 'pointer' : 'not-allowed',
-              boxShadow: dashAvailable ? '0 0 16px rgba(0, 229, 255, 0.6)' : 'none',
+              boxShadow: dashAvailable ? '0 0 18px rgba(0, 229, 255, 0.7)' : 'none',
               transition: 'all 0.2s'
             }}
           >
-            ⚡ {dashAvailable ? 'DASH (Space)' : 'COOLING DOWN...'}
+            ⚡ {dashAvailable ? 'SUPER DASH [Space]' : 'RECHARGING...'}
           </button>
         </div>
       </div>
 
-      {/* Touch D-Pad for Mobile or Quick Click */}
-      <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button
-          onMouseDown={() => handleVirtualMove(-1, 0)}
-          onMouseUp={() => handleVirtualMove(0, 0)}
-          onTouchStart={() => handleVirtualMove(-1, 0)}
-          onTouchEnd={() => handleVirtualMove(0, 0)}
-          style={touchBtnStyle}
-        >
-          ◀
-        </button>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button
-            onMouseDown={() => handleVirtualMove(0, -1)}
-            onMouseUp={() => handleVirtualMove(0, 0)}
-            onTouchStart={() => handleVirtualMove(0, -1)}
-            onTouchEnd={() => handleVirtualMove(0, 0)}
-            style={touchBtnStyle}
-          >
-            ▲
-          </button>
-          <button
-            onMouseDown={() => handleVirtualMove(0, 1)}
-            onMouseUp={() => handleVirtualMove(0, 0)}
-            onTouchStart={() => handleVirtualMove(0, 1)}
-            onTouchEnd={() => handleVirtualMove(0, 0)}
-            style={touchBtnStyle}
-          >
-            ▼
-          </button>
-        </div>
-        <button
-          onMouseDown={() => handleVirtualMove(1, 0)}
-          onMouseUp={() => handleVirtualMove(0, 0)}
-          onTouchStart={() => handleVirtualMove(1, 0)}
-          onTouchEnd={() => handleVirtualMove(0, 0)}
-          style={touchBtnStyle}
-        >
-          ▶
-        </button>
-        <span style={{ fontSize: 13, color: '#94a3b8', marginLeft: 16 }}>
-          💡 Controls: <strong>WASD / Arrow Keys</strong> to move • <strong>Spacebar</strong> to Dash • Bump opponents to steal coins!
+      {/* Controls & Tip Bar */}
+      <div style={{ marginTop: 12, display: 'flex', gap: 14, alignItems: 'center', background: '#0f172a', padding: '10px 18px', borderRadius: 8, border: '1px solid #1e293b' }}>
+        <span style={{ fontSize: 13, color: '#00e5ff', fontWeight: 'bold' }}>🎮 Pro Controls:</span>
+        <span style={{ fontSize: 13, color: '#94a3b8' }}>
+          <strong>Drag Mouse or WASD</strong> to steer • <strong>Spacebar</strong> to Dash • Gather coins quickly for <strong>Combo Streaks</strong> • Brawl over the center <strong>Mega-Star ⭐</strong>!
         </span>
       </div>
     </div>
   );
-};
-
-const touchBtnStyle: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  background: '#1e293b',
-  border: '1px solid #475569',
-  color: '#00e5ff',
-  borderRadius: 8,
-  fontSize: 16,
-  fontWeight: 'bold',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center'
 };
