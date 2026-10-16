@@ -31,6 +31,7 @@ export interface GameMetadata {
   hasTimer?: boolean;
   winningCondition?: string;
   levelsCount?: number;
+  difficulties?: DifficultyLevel[];
   description: string;
   objective?: string;
   controls?: string;
