@@ -1,0 +1,42 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MAHJONG_CONFIG = exports.ACCG_CONFIG = exports.GLOWBALL_CONFIG = exports.BLOB_BRAWL_CONFIG = exports.RECONNECT_GRACE_MS = exports.PHYSICS_STEP_SEC = exports.SERVER_TICK_RATE = void 0;
+exports.SERVER_TICK_RATE = 20; // 20 Hz authoritative network broadcast
+exports.PHYSICS_STEP_SEC = 1 / 60;
+exports.RECONNECT_GRACE_MS = 30000;
+exports.BLOB_BRAWL_CONFIG = {
+    ARENA_WIDTH: 800,
+    ARENA_HEIGHT: 600,
+    ROUND_DURATION_SEC: 60,
+    MAX_COINS: 12,
+    BASE_SPEED: 220,
+    LEVEL_SPEED_BONUS: 0.02,
+    BUMP_COOLDOWN_MS: 1000,
+    KNOCKOUT_BUMPS: 3,
+    RESPAWN_TIME_SEC: 3.0,
+    PLAYER_RADIUS: 18,
+    COIN_RADIUS: 10
+};
+exports.GLOWBALL_CONFIG = {
+    ARENA_WIDTH: 900,
+    ARENA_HEIGHT: 650,
+    ROUND_DURATION_SEC: 90,
+    MAX_ORBS: 15,
+    BASE_SPEED: 240,
+    DASH_MULTIPLIER: 2.5,
+    DASH_DURATION_SEC: 0.25,
+    DASH_COOLDOWN_SEC: 2.5
+};
+exports.ACCG_CONFIG = {
+    GRID_SIZE: 8,
+    ROUND_DURATION_SEC: 120,
+    STARTING_HP: 100,
+    ATTACK_DAMAGE: 25
+};
+exports.MAHJONG_CONFIG = {
+    ROUND_DURATION_SEC: 90,
+    MATCH_SCORE: 20,
+    COMBO_BONUS: 10,
+    SPECIAL_TILE_SCORE: 50,
+    FREEZE_DURATION_SEC: 2.5
+};

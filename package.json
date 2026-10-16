@@ -1,0 +1,17 @@
+{
+  "name": "owe-arcade-hub-monorepo",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Full-stack extensible multiplayer game architecture for start.ng",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "postinstall": "npm --prefix shared install && npm --prefix server install && npm --prefix client install",
+    "build": "npm --prefix shared run build --if-present && npm --prefix server run build && npm --prefix client run build",
+    "start": "node server/dist/server/src/index.js",
+    "test": "npm --prefix server test"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

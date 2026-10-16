@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  owe-arcade-hub:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - USE_MOCK_PLATFORM=true
+      - PLATFORM_API_URL=https://api.start.ng/v1
+    restart: unless-stopped

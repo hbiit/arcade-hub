@@ -1,0 +1,8 @@
+{
+  "leaderboard": {
+    "stats": [
+      { "key": "score", "label": "Top Score", "order": "highest" },
+      { "key": "wins", "label": "Matches Won", "order": "highest" }
+    ]
+  }
+}
