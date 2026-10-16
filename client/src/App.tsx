@@ -10,8 +10,11 @@ import { SoundFX } from './utils/soundEffects';
 import { fetchStartNgPlayer, triggerStartNgSignIn, saveStartNgScore, StartNgUser } from './utils/startNg';
 import { LocalGameRunner } from './utils/localGameRunner';
 
-const socketUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:4000' : '/';
-const socket: Socket = io(socketUrl, { autoConnect: true, reconnectionAttempts: 2, timeout: 2500 });
+const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const socketUrl = isLocalhost ? 'http://localhost:4000' : '';
+const socket: Socket = isLocalhost
+  ? io(socketUrl, { autoConnect: true, reconnectionAttempts: 2, timeout: 2500 })
+  : io({ autoConnect: false });
 
 const DEFAULT_GAMES: GameMetadata[] = [
   {

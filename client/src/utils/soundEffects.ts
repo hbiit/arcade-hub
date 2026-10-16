@@ -244,6 +244,16 @@ class SoundFXManager {
     });
   }
 
+  // UI Interactive Button Click
+  playButton() {
+    this.playTileClick();
+  }
+
+  // Coin collect chime
+  playCoinCollect() {
+    this.playCoin();
+  }
+
   // Crystalline frost freeze sweep
   playFreeze() {
     const ctx = this.initCtx();
@@ -267,4 +277,18 @@ class SoundFXManager {
   }
 }
 
-export const SoundFX = new SoundFXManager();
+const rawSoundFX = new SoundFXManager();
+
+export const SoundFX: SoundFXManager & Record<string, any> = new Proxy(rawSoundFX as any, {
+  get(target, prop, receiver) {
+    if (prop in target) {
+      const val = (target as any)[prop];
+      if (typeof val === 'function') {
+        return val.bind(target);
+      }
+      return val;
+    }
+    // Safe no-op fallback for any unmapped sound effect
+    return () => {};
+  }
+});
