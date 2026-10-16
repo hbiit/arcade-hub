@@ -6,6 +6,10 @@ import { GlowballCanvas } from './games/glowball/GlowballCanvas';
 import { ACCGCanvas } from './games/accg/ACCGCanvas';
 import { MahjongCanvas } from './games/mahjong/MahjongCanvas';
 import { MahjongSolitaireCanvas } from './games/mahjong/MahjongSolitaireCanvas';
+import { BrickBreakerCanvas } from './games/brick/BrickBreakerCanvas';
+import { CheckersCanvas } from './games/checkers/CheckersCanvas';
+import { CyberSlitherCanvas } from './games/slither/CyberSlitherCanvas';
+import { GalaxyStrikeCanvas } from './games/galaxy/GalaxyStrikeCanvas';
 import { SoundFX } from './utils/soundEffects';
 import { fetchStartNgPlayer, triggerStartNgSignIn, saveStartNgScore, StartNgUser } from './utils/startNg';
 import { LocalGameRunner } from './utils/localGameRunner';
@@ -103,6 +107,42 @@ const DEFAULT_GAMES: GameMetadata[] = [
     maxPlayers: 4,
     durationSeconds: 90,
     description: '3D multi-layered ivory tile matching puzzle with combo streaks, Lightning Zap, and Time Freeze.'
+  },
+  {
+    id: 'brick_breaker',
+    title: 'Break Breaker Overcharge',
+    category: 'Puzzle & Arcade',
+    minPlayers: 1,
+    maxPlayers: 4,
+    durationSeconds: 90,
+    description: 'Multi-ball neon demolition! Demolish crystal bricks with laser paddles, explosive plasma balls, and floor forcefields!'
+  },
+  {
+    id: 'checkers',
+    title: 'Neon Cyber Checkers',
+    category: 'Tactical Strategy',
+    minPlayers: 1,
+    maxPlayers: 2,
+    durationSeconds: 120,
+    description: 'Classic 8x8 draughts with crown king upgrades, multi-jump captures, and tactical AI bots or 2-player multiplayer!'
+  },
+  {
+    id: 'cyber_slither',
+    title: 'Cyber Slither 3000',
+    category: 'Arena Action',
+    minPlayers: 1,
+    maxPlayers: 6,
+    durationSeconds: 75,
+    description: 'Smooth analog cyber-serpent arena! Feast on glowing energy orbs, boost across lines, and trap rivals to trigger neon shockwave bursts!'
+  },
+  {
+    id: 'galaxy_strike',
+    title: 'Neon Galaxy Strike',
+    category: 'Arena Action',
+    minPlayers: 1,
+    maxPlayers: 4,
+    durationSeconds: 90,
+    description: 'High-octane space shoot \'em up! Blast incoming swarm fighters, collect triple laser powerups, and take down the Void Dreadnought boss!'
   }
 ];
 
@@ -420,9 +460,9 @@ export const App: React.FC = () => {
 
   const filteredGames = games.filter(g => {
     if (activeCategory === 'all') return true;
-    if (activeCategory === 'action') return g.category === 'Arena Action';
-    if (activeCategory === 'strategy') return g.category === 'Tactical Strategy';
-    if (activeCategory === 'puzzle') return g.category === 'Puzzle & Board';
+    if (activeCategory === 'action') return g.category.includes('Action') || g.id === 'galaxy_strike' || g.id === 'cyber_slither';
+    if (activeCategory === 'strategy') return g.category.includes('Strategy') || g.id === 'checkers';
+    if (activeCategory === 'puzzle') return g.category.includes('Puzzle') || g.id === 'brick_breaker' || g.category.includes('Board');
     return true;
   });
 
@@ -686,6 +726,10 @@ export const App: React.FC = () => {
             {activeRoom.gameId === 'accg' && <ACCGCanvas socket={socket} room={activeRoom} />}
             {activeRoom.gameId === 'mahjong' && <MahjongCanvas socket={socket} room={activeRoom} />}
             {activeRoom.gameId === 'mahjong-solitaire' && <MahjongSolitaireCanvas socket={socket} room={activeRoom} />}
+            {activeRoom.gameId === 'brick_breaker' && <BrickBreakerCanvas socket={socket} room={activeRoom} />}
+            {activeRoom.gameId === 'checkers' && <CheckersCanvas socket={socket} room={activeRoom} />}
+            {activeRoom.gameId === 'cyber_slither' && <CyberSlitherCanvas socket={socket} room={activeRoom} />}
+            {activeRoom.gameId === 'galaxy_strike' && <GalaxyStrikeCanvas socket={socket} room={activeRoom} />}
 
             {/* Paused Overlay */}
             {activeRoom.status === 'paused' && (
@@ -1037,7 +1081,15 @@ export const App: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 18, marginBottom: 32 }}>
         {filteredGames.map(g => {
           const isSel = selectedGame === g.id;
-          const icon = g.id === 'blob' ? '💥' : g.id === 'glowball' ? '⚡' : g.id === 'accg' ? '🛡️' : g.id === 'mahjong' ? '🀄' : '🀆';
+          const icon = g.id === 'blob' ? '💥'
+            : g.id === 'glowball' ? '⚡'
+            : g.id === 'accg' ? '🛡️'
+            : g.id === 'mahjong' ? '🀄'
+            : g.id === 'mahjong-solitaire' ? '🀆'
+            : g.id === 'brick_breaker' ? '🧱'
+            : g.id === 'checkers' ? '👑'
+            : g.id === 'cyber_slither' ? '🐍'
+            : '🚀';
           return (
             <div
               key={g.id}
@@ -1289,6 +1341,86 @@ export const App: React.FC = () => {
           '🔀 Cosmic Shuffle: Re-arranges remaining tiles to guarantee open matching paths'
         ],
         victory: 'Clear all tiles from the board to achieve 100% board clearance and maximum bonus points.'
+      },
+      brick_breaker: {
+        title: 'Break Breaker Overcharge',
+        category: 'Puzzle & Arcade Demolition',
+        objective: 'Demolish all neon crystal bricks with high-velocity plasma balls before your 3 lives run out or the 90s timer expires.',
+        controls: [
+          '🖱️ Mouse Horizontal / Touch Drag: Glide paddle left and right across your defense zone',
+          '⚡ Spacebar / Click / Launch: Launch resting balls into high-velocity trajectory'
+        ],
+        rules: [
+          'Ball deflects off paddle with angular momentum—hitting edges creates sharp angles.',
+          'Crystal bricks have differing hit points and drop valuable tactical powerups.',
+          'Clearing all bricks immediately completes the wave and triggers high-score multiplier bonuses.'
+        ],
+        powerups: [
+          '🔴 Multi-Ball: Triples the active plasma balls in play',
+          '📏 Laser Paddle: Expands paddle width by 60% with side-mounted blaster cannons',
+          '🛡️ Floor Shield: Forcefield barrier that saves one lost ball from falling'
+        ],
+        victory: 'Demolish the crystal brick matrix to score maximum points and conquer the high-score leaderboard.'
+      },
+      checkers: {
+        title: 'Neon Cyber Checkers',
+        category: 'Tactical Draughts Strategy',
+        objective: 'Capture or immobilize all enemy checkers to achieve total board supremacy.',
+        controls: [
+          '🖱️ Click Piece: Select active checker piece (shows legal move and jump paths)',
+          '🖱️ Click Highlighted Tile: Move or jump piece to capture opponent'
+        ],
+        rules: [
+          'Official 8x8 draughts: pieces move diagonally forward one step onto dark squares.',
+          'Jumping over an opponent captures and removes their piece from the board.',
+          'Multi-jumps: If another jump is possible immediately after a capture, chain it!',
+          'King Promotion: Reaching the enemy back rank crowns your piece as a King, unlocking backwards movement and backwards jumps.'
+        ],
+        powerups: [
+          '👑 King Cyber Crown: Unlocks multi-directional diagonal attack movement',
+          '🤖 Heuristic AI Bot: Evaluates piece differential, center control, and king safety'
+        ],
+        victory: 'Capture all 12 opposing checkers or force the rival into an inescapable position with zero legal moves.'
+      },
+      cyber_slither: {
+        title: 'Cyber Slither 3000',
+        category: 'Arena Action Slither',
+        objective: 'Grow your cyber-serpent to massive lengths by consuming glowing plasma pellets while cutting off rival snakes.',
+        controls: [
+          '🖱️ Mouse Steering / Touch: Smoothly direct your serpent head toward energy pellets and away from hazards',
+          '⚡ Spacebar / Mouse Hold / Click: Engage Sprint Afterburner boost (costs a small amount of body length)'
+        ],
+        rules: [
+          'Consume glowing energy pellets to increase your serpent length and match score.',
+          'Hitting another snake’s body or tail destroys your serpent into high-density energy orbs!',
+          'Circling opponents traps them inside your coils, forcing an inevitable crash.'
+        ],
+        powerups: [
+          '🧲 Mega Magnet: Pulls all nearby energy orbs directly into your serpent maw',
+          '⚡ Afterburner Overdrive: High-speed boost with minimal length burn',
+          '💥 Plasma Shockwave: Scatters nearby hazards and forces AI rivals away'
+        ],
+        victory: 'Survive the 75-second arena battle and achieve the longest serpent and highest score.'
+      },
+      galaxy_strike: {
+        title: 'Neon Galaxy Strike',
+        category: 'Sci-Fi Space Shoot \'Em Up',
+        objective: 'Pilot your stellar fighter through waves of alien swarm drones and annihilate the Void Dreadnought flagship.',
+        controls: [
+          '🖱️ Mouse / Touch Drag: Maneuver your starfighter across the starfield',
+          '⚡ Auto-Blaster / Click: Continuous rapid-fire plasma blasters at 60 FPS'
+        ],
+        rules: [
+          'Destroying enemy drones yields points, score multipliers, and powerup drops.',
+          'Evade incoming enemy laser fire and suicide dive bombers.',
+          'Boss Dreadnought spawns at Wave 3 with multi-phase laser turrets and heavy armor shields.'
+        ],
+        powerups: [
+          '🔱 Triple Plasma Blaster: 3-way spread fire for total screen clearance',
+          '🛡️ Deflector Energy Shield: Absorbs 2 direct enemy bullet hits without damage',
+          '💣 EMP Nova Bomb: Clears all enemy projectiles from the screen in a flash'
+        ],
+        victory: 'Defeat the Void Dreadnought boss and reach the highest starfighter flight score.'
       }
     };
 

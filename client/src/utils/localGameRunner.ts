@@ -4,6 +4,10 @@ import { GlowballEngine } from '../../../server/src/engines/GlowballEngine';
 import { ACCGEngine } from '../../../server/src/engines/ACCGEngine';
 import { MahjongEngine } from '../../../server/src/engines/MahjongEngine';
 import { MahjongSolitaireEngine } from '../../../server/src/engines/MahjongSolitaireEngine';
+import { BrickBreakerEngine } from '../../../server/src/engines/BrickBreakerEngine';
+import { CheckersEngine } from '../../../server/src/engines/CheckersEngine';
+import { CyberSlitherEngine } from '../../../server/src/engines/CyberSlitherEngine';
+import { GalaxyStrikeEngine } from '../../../server/src/engines/GalaxyStrikeEngine';
 
 export class LocalGameRunner {
   private engine: any;
@@ -33,6 +37,14 @@ export class LocalGameRunner {
       this.engine = new ACCGEngine(roomCode, onEngineUpdate);
     } else if (gameId === 'mahjong') {
       this.engine = new MahjongEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'brick_breaker') {
+      this.engine = new BrickBreakerEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'checkers') {
+      this.engine = new CheckersEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'cyber_slither') {
+      this.engine = new CyberSlitherEngine(roomCode, onEngineUpdate);
+    } else if (gameId === 'galaxy_strike') {
+      this.engine = new GalaxyStrikeEngine(roomCode, onEngineUpdate);
     } else {
       this.engine = new MahjongSolitaireEngine(roomCode, onEngineUpdate);
     }
@@ -52,7 +64,10 @@ export class LocalGameRunner {
       mahjong: 90,
       'mahjong-solitaire': 90,
       mahjong_solitaire: 90,
-      cyber_slither: 60,
+      brick_breaker: 90,
+      checkers: 180,
+      cyber_slither: 90,
+      galaxy_strike: 90,
       party_blitz: 60
     };
 

@@ -1,4 +1,4 @@
-export type GameId = 'accg' | 'glowball' | 'blob' | 'mahjong' | 'mahjong-solitaire' | 'mahjong_solitaire' | 'cyber_slither' | 'party_blitz';
+export type GameId = 'blob' | 'glowball' | 'accg' | 'mahjong' | 'mahjong-solitaire' | 'mahjong_solitaire' | 'brick_breaker' | 'checkers' | 'cyber_slither' | 'galaxy_strike' | 'party_blitz';
 
 export interface UserProfile {
   id: string;

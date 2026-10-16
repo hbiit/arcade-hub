@@ -18,10 +18,16 @@ export interface PlayerInputPayload {
   targetRow?: number;
   targetCol?: number;
   abilityId?: string;
-  // Mahjong specific actions
-  action?: 'discard' | 'chi' | 'pong' | 'kong' | 'hu' | 'pass' | 'selectTile' | 'matchTiles' | 'powerup' | 'shuffle';
+  targetX?: number;
+  targetY?: number;
+  shoot?: boolean;
+  // Universal and game-specific actions
+  action?: 'discard' | 'chi' | 'pong' | 'kong' | 'hu' | 'pass' | 'selectTile' | 'matchTiles' | 'powerup' | 'shuffle' | 'fire' | 'select_piece' | 'make_move' | 'overdrive' | string;
   tileId?: string;
   targetTileId?: string;
   powerupId?: 'lightning' | 'freeze' | 'shuffle';
   meldTileIds?: string[];
+  pieceId?: string;
+  toRow?: number;
+  toCol?: number;
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAHJONG_CONFIG = exports.ACCG_CONFIG = exports.GLOWBALL_CONFIG = exports.BLOB_BRAWL_CONFIG = exports.RECONNECT_GRACE_MS = exports.PHYSICS_STEP_SEC = exports.SERVER_TICK_RATE = void 0;
+exports.GALAXY_STRIKE_CONFIG = exports.CYBER_SLITHER_CONFIG = exports.CHECKERS_CONFIG = exports.BRICK_BREAKER_CONFIG = exports.MAHJONG_CONFIG = exports.ACCG_CONFIG = exports.GLOWBALL_CONFIG = exports.BLOB_BRAWL_CONFIG = exports.RECONNECT_GRACE_MS = exports.PHYSICS_STEP_SEC = exports.SERVER_TICK_RATE = void 0;
 exports.SERVER_TICK_RATE = 20; // 20 Hz authoritative network broadcast
 exports.PHYSICS_STEP_SEC = 1 / 60;
 exports.RECONNECT_GRACE_MS = 30000;
@@ -39,4 +39,35 @@ exports.MAHJONG_CONFIG = {
     COMBO_BONUS: 10,
     SPECIAL_TILE_SCORE: 50,
     FREEZE_DURATION_SEC: 2.5
+};
+exports.BRICK_BREAKER_CONFIG = {
+    ARENA_WIDTH: 800,
+    ARENA_HEIGHT: 650,
+    PADDLE_WIDTH: 110,
+    PADDLE_HEIGHT: 16,
+    BALL_RADIUS: 8,
+    BASE_BALL_SPEED: 360,
+    MAX_LIVES: 3,
+    ROUND_DURATION_SEC: 90
+};
+exports.CHECKERS_CONFIG = {
+    BOARD_SIZE: 8,
+    TURN_TIME_SEC: 35,
+    ROUND_DURATION_SEC: 180
+};
+exports.CYBER_SLITHER_CONFIG = {
+    ARENA_WIDTH: 1000,
+    ARENA_HEIGHT: 750,
+    ROUND_DURATION_SEC: 90,
+    BASE_SPEED: 180,
+    BOOST_SPEED: 340,
+    STARTING_SEGMENTS: 12
+};
+exports.GALAXY_STRIKE_CONFIG = {
+    ARENA_WIDTH: 800,
+    ARENA_HEIGHT: 650,
+    SHIP_SPEED: 320,
+    LASER_SPEED: 650,
+    MAX_LIVES: 3,
+    ROUND_DURATION_SEC: 90
 };

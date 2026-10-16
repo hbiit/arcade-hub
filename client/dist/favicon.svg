@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060913"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="neonCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="neonPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff007f"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bgGrad)" stroke="#00e5ff" stroke-width="2"/>
+  <ellipse cx="32" cy="46" rx="18" ry="7" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+  <line x1="32" y1="46" x2="32" y2="24" stroke="#94a3b8" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="32" cy="22" r="11" fill="url(#neonPink)"/>
+  <circle cx="28" cy="18" r="3.5" fill="#ffffff" opacity="0.6"/>
+  <circle cx="49" cy="44" r="4" fill="url(#neonCyan)"/>
+  <circle cx="15" cy="44" r="4" fill="#ffe600"/>
+</svg>

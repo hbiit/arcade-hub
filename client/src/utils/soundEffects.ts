@@ -275,6 +275,43 @@ class SoundFXManager {
     osc.start(now);
     osc.stop(now + 0.35);
   }
+
+  // Sci-fi high-speed plasma laser shot
+  playLaser() {
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.12);
+
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
+
+  // Deep rumble explosion
+  playExplosion() {
+    this.playKnockout();
+  }
+
+  // Crisp paddle bounce
+  playPaddle() {
+    this.playTileClick();
+  }
+
+  // Arcade score chime
+  playScore() {
+    this.playCoin();
+  }
 }
 
 const rawSoundFX = new SoundFXManager();
