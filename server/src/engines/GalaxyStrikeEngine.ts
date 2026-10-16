@@ -1,5 +1,5 @@
 import { BaseGameEngine } from './BaseGameEngine';
-import { GALAXY_STRIKE_CONFIG, PlayerInputPayload, PlayerSession } from '../../../shared/src';
+import { GALAXY_STRIKE_CONFIG, PlayerInputPayload, PlayerSession, DifficultyLevel } from '../../../shared/src';
 
 export interface EnemyShip {
   id: number;
@@ -66,6 +66,9 @@ export interface GalaxyStrikeState {
   enemyBolts: EnemyBolt[];
   powerups: GalaxyPowerup[];
   wave: number;
+  maxWaves: number;
+  isGameOver?: boolean;
+  isVictory?: boolean;
   events: GalaxyEvent[];
 }
 
@@ -74,6 +77,23 @@ export class GalaxyStrikeEngine extends BaseGameEngine<GalaxyStrikeState> {
   private shootCooldown = 0;
   private waveSpawnTimer = 1.0;
   private targetPlayerX = GALAXY_STRIKE_CONFIG.ARENA_WIDTH / 2;
+  private enemyBulletSpeed = 240;
+
+  public override setDifficulty(difficulty: DifficultyLevel): void {
+    super.setDifficulty(difficulty);
+    if (difficulty === 'easy') {
+      this.state.player.lives = 4;
+      this.state.player.powerup = 'spread';
+      this.state.player.powerupTimer = 15;
+      this.enemyBulletSpeed = 180;
+    } else if (difficulty === 'hard') {
+      this.state.player.lives = 2;
+      this.enemyBulletSpeed = 300;
+    } else {
+      this.state.player.lives = 3;
+      this.enemyBulletSpeed = 240;
+    }
+  }
 
   initializeState(): GalaxyStrikeState {
     this.targetPlayerX = GALAXY_STRIKE_CONFIG.ARENA_WIDTH / 2;
@@ -98,6 +118,7 @@ export class GalaxyStrikeEngine extends BaseGameEngine<GalaxyStrikeState> {
       enemyBolts: [],
       powerups: [],
       wave: 1,
+      maxWaves: 3,
       events: []
     };
   }
@@ -288,11 +309,26 @@ export class GalaxyStrikeEngine extends BaseGameEngine<GalaxyStrikeState> {
 
             this.state.enemies.splice(eIdx, 1);
 
-            // If wave cleared, advance wave
-            if (this.state.enemies.length === 0) {
-              this.state.wave += 1;
-              p.score += 200;
-              this.waveSpawnTimer = 1.5;
+            // If wave cleared, advance wave or declare victory
+            if (this.state.enemies.length === 0 && !this.state.isGameOver) {
+              if (this.state.wave >= this.state.maxWaves) {
+                this.state.isGameOver = true;
+                this.state.isVictory = true;
+                p.score += 1500;
+                this.pushEvent({
+                  id: Math.random().toString(36),
+                  type: 'wave_clear',
+                  text: '🏆 VOID DREADNOUGHT DESTROYED! GALAXY SAVED! +1500',
+                  x: this.state.arenaWidth / 2,
+                  y: 120,
+                  color: '#ffe600',
+                  timestamp: now
+                });
+              } else {
+                this.state.wave += 1;
+                p.score += 200;
+                this.waveSpawnTimer = 1.5;
+              }
             }
           }
           break;
@@ -363,15 +399,29 @@ export class GalaxyStrikeEngine extends BaseGameEngine<GalaxyStrikeState> {
           } else {
             p.lives -= 1;
             p.invulnerableTimer = 2.2;
-            this.pushEvent({
-              id: Math.random().toString(36),
-              type: 'player_hit',
-              text: `💥 SHIP DAMAGED! (${p.lives} LIVES)`,
-              x: p.x,
-              y: p.y,
-              color: '#ef4444',
-              timestamp: now
-            });
+            if (p.lives <= 0) {
+              this.state.isGameOver = true;
+              this.state.isVictory = false;
+              this.pushEvent({
+                id: Math.random().toString(36),
+                type: 'player_hit',
+                text: '💀 SHIP DESTROYED! MISSION FAILED',
+                x: p.x,
+                y: p.y,
+                color: '#ef4444',
+                timestamp: now
+              });
+            } else {
+              this.pushEvent({
+                id: Math.random().toString(36),
+                type: 'player_hit',
+                text: `💥 SHIP DAMAGED! (${p.lives} LIVES)`,
+                x: p.x,
+                y: p.y,
+                color: '#ef4444',
+                timestamp: now
+              });
+            }
           }
           continue;
         }

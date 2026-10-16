@@ -1,5 +1,5 @@
 import { BaseGameEngine } from './BaseGameEngine';
-import { CYBER_SLITHER_CONFIG, PlayerInputPayload, PlayerSession } from '../../../shared/src';
+import { CYBER_SLITHER_CONFIG, PlayerInputPayload, PlayerSession, DifficultyLevel } from '../../../shared/src';
 
 export interface SnakeSegment {
   x: number;
@@ -57,6 +57,18 @@ const DEFAULT_SLITHER_BOTS = [
 export class CyberSlitherEngine extends BaseGameEngine<CyberSlitherState> {
   private pelletIdCounter = 1;
   private botsSpawned = false;
+  private botSpeedMultiplier = 1.0;
+
+  public override setDifficulty(difficulty: DifficultyLevel): void {
+    super.setDifficulty(difficulty);
+    if (difficulty === 'easy') {
+      this.botSpeedMultiplier = 0.8;
+    } else if (difficulty === 'hard') {
+      this.botSpeedMultiplier = 1.25;
+    } else {
+      this.botSpeedMultiplier = 1.0;
+    }
+  }
 
   initializeState(): CyberSlitherState {
     const pellets: SlitherPellet[] = [];

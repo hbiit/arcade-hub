@@ -11,6 +11,19 @@ const DEFAULT_SLITHER_BOTS = [
 class CyberSlitherEngine extends BaseGameEngine_1.BaseGameEngine {
     pelletIdCounter = 1;
     botsSpawned = false;
+    botSpeedMultiplier = 1.0;
+    setDifficulty(difficulty) {
+        super.setDifficulty(difficulty);
+        if (difficulty === 'easy') {
+            this.botSpeedMultiplier = 0.8;
+        }
+        else if (difficulty === 'hard') {
+            this.botSpeedMultiplier = 1.25;
+        }
+        else {
+            this.botSpeedMultiplier = 1.0;
+        }
+    }
     initializeState() {
         const pellets = [];
         const colors = ['#00e5ff', '#ffe600', '#f43f5e', '#10b981', '#a855f7'];

@@ -6,11 +6,15 @@ class BaseGameEngine {
     players;
     state;
     onStateUpdate;
+    difficulty = 'normal';
     constructor(roomCode = 'SOLO_ROOM', onStateUpdate = () => { }) {
         this.roomCode = roomCode || 'SOLO_ROOM';
         this.players = new Map();
         this.onStateUpdate = typeof onStateUpdate === 'function' ? onStateUpdate : () => { };
         this.state = this.initializeState();
+    }
+    setDifficulty(difficulty) {
+        this.difficulty = difficulty;
     }
     registerPlayer(player) {
         this.players.set(player.socketId, player);

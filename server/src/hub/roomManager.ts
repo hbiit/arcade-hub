@@ -49,7 +49,9 @@ export class RoomManager {
       status: 'lobby',
       players: { [hostSocket.id]: hostSession },
       gameData: engine.getState(),
-      timeRemaining: entry.metadata.durationSeconds
+      hasTimer: entry.metadata.hasTimer !== false,
+      timeRemaining: entry.metadata.durationSeconds || 60,
+      elapsedSeconds: 0
     };
 
     engine.registerPlayer(hostSession);
@@ -195,7 +197,8 @@ export class RoomManager {
 
     if (room.state.status === 'ended') {
       const entry = GameRegistry.getGame(room.state.gameId);
-      room.state.timeRemaining = entry ? entry.metadata.durationSeconds : 60;
+      room.state.timeRemaining = entry ? (entry.metadata.durationSeconds || 60) : 60;
+      room.state.elapsedSeconds = 0;
       room.engine.reset();
       room.state.gameData = room.engine.getState();
       for (const p of Object.values(room.state.players)) {
@@ -217,11 +220,22 @@ export class RoomManager {
       const dt = (now - lastTick) / 1000;
       lastTick = now;
 
-      room.state.timeRemaining = Math.max(0, room.state.timeRemaining - dt);
       room.engine.tick(dt);
 
-      if (room.state.timeRemaining <= 0) {
-        this.endGame(roomCode);
+      if (room.state.hasTimer !== false) {
+        room.state.timeRemaining = Math.max(0, room.state.timeRemaining - dt);
+        if (room.state.timeRemaining <= 0) {
+          this.endGame(roomCode);
+        }
+      } else {
+        room.state.elapsedSeconds = (room.state.elapsedSeconds || 0) + dt;
+        const engAny = room.engine as any;
+        if (engAny.isGameOver && typeof engAny.isGameOver === 'function' && engAny.isGameOver()) {
+          if (engAny.winnerSocketId) {
+            room.state.winnerSocketId = engAny.winnerSocketId;
+          }
+          this.endGame(roomCode);
+        }
       }
     }, 50); // 20 Hz
   }
@@ -269,7 +283,8 @@ export class RoomManager {
         current.engine.reset();
         current.state.gameData = current.engine.getState();
         const entry = GameRegistry.getGame(current.state.gameId);
-        current.state.timeRemaining = entry ? entry.metadata.durationSeconds : 60;
+        current.state.timeRemaining = entry ? (entry.metadata.durationSeconds || 60) : 60;
+        current.state.elapsedSeconds = 0;
         this.io.to(roomCode).emit(SOCKET_EVENTS.ROOM_UPDATED, current.state);
       }
     }, 8000);

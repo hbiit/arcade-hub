@@ -1,5 +1,5 @@
 import { BaseGameEngine } from './BaseGameEngine';
-import { BRICK_BREAKER_CONFIG, PlayerInputPayload, PlayerSession } from '../../../shared/src';
+import { BRICK_BREAKER_CONFIG, PlayerInputPayload, PlayerSession, DifficultyLevel } from '../../../shared/src';
 
 export interface BrickState {
   id: number;
@@ -68,13 +68,34 @@ export interface BrickBreakerState {
   combo: number;
   lives: number;
   level: number;
+  maxLevels: number;
   ballAttached: boolean;
+  isGameOver?: boolean;
+  isVictory?: boolean;
   events: BrickBreakerEvent[];
 }
 
 export class BrickBreakerEngine extends BaseGameEngine<BrickBreakerState> {
   private nextId = 100;
   private targetPaddleX = BRICK_BREAKER_CONFIG.ARENA_WIDTH / 2;
+  private speedFactor = 1.0;
+
+  public override setDifficulty(difficulty: DifficultyLevel): void {
+    super.setDifficulty(difficulty);
+    if (difficulty === 'easy') {
+      this.state.lives = 4;
+      this.state.paddle.width = Math.round(BRICK_BREAKER_CONFIG.PADDLE_WIDTH * 1.25);
+      this.speedFactor = 0.85;
+    } else if (difficulty === 'hard') {
+      this.state.lives = 2;
+      this.state.paddle.width = Math.round(BRICK_BREAKER_CONFIG.PADDLE_WIDTH * 0.85);
+      this.speedFactor = 1.2;
+    } else {
+      this.state.lives = 3;
+      this.state.paddle.width = BRICK_BREAKER_CONFIG.PADDLE_WIDTH;
+      this.speedFactor = 1.0;
+    }
+  }
 
   initializeState(): BrickBreakerState {
     this.targetPaddleX = BRICK_BREAKER_CONFIG.ARENA_WIDTH / 2;
@@ -115,6 +136,7 @@ export class BrickBreakerEngine extends BaseGameEngine<BrickBreakerState> {
       combo: 0,
       lives: BRICK_BREAKER_CONFIG.MAX_LIVES,
       level: 1,
+      maxLevels: 3,
       ballAttached: true,
       events: []
     };
@@ -423,10 +445,12 @@ export class BrickBreakerEngine extends BaseGameEngine<BrickBreakerState> {
             timestamp: now
           });
         } else {
+          this.state.isGameOver = true;
+          this.state.isVictory = false;
           this.pushEvent({
             id: Math.random().toString(36),
             type: 'life_lost',
-            text: '💀 GAME OVER!',
+            text: '💀 GAME OVER! OUT OF LIVES',
             x: p.x,
             y: p.y,
             color: '#ef4444',
@@ -437,30 +461,45 @@ export class BrickBreakerEngine extends BaseGameEngine<BrickBreakerState> {
     }
 
     // Level Clear Check
-    if (this.state.bricks.length === 0) {
-      this.state.level += 1;
-      this.state.score += 250;
-      this.state.bricks = this.generateBrickLayout(this.state.level);
-      this.state.ballAttached = true;
-      this.state.balls = [
-        {
-          id: ++this.nextId,
-          x: p.x,
-          y: p.y - BRICK_BREAKER_CONFIG.BALL_RADIUS - 4,
-          vx: 0,
-          vy: 0,
-          radius: BRICK_BREAKER_CONFIG.BALL_RADIUS
-        }
-      ];
-      this.pushEvent({
-        id: Math.random().toString(36),
-        type: 'combo',
-        text: `🌟 LEVEL ${this.state.level} CLEAR! +250`,
-        x: this.state.arenaWidth / 2,
-        y: this.state.arenaHeight / 2,
-        color: '#ffe600',
-        timestamp: now
-      });
+    if (this.state.bricks.length === 0 && !this.state.isGameOver) {
+      if (this.state.level >= this.state.maxLevels) {
+        this.state.isGameOver = true;
+        this.state.isVictory = true;
+        this.state.score += 1000;
+        this.pushEvent({
+          id: Math.random().toString(36),
+          type: 'combo',
+          text: '🏆 ALL LEVELS CLEARED! GRAND VICTORY! +1000',
+          x: this.state.arenaWidth / 2,
+          y: this.state.arenaHeight / 2,
+          color: '#ffe600',
+          timestamp: now
+        });
+      } else {
+        this.state.level += 1;
+        this.state.score += 250;
+        this.state.bricks = this.generateBrickLayout(this.state.level);
+        this.state.ballAttached = true;
+        this.state.balls = [
+          {
+            id: ++this.nextId,
+            x: p.x,
+            y: p.y - BRICK_BREAKER_CONFIG.BALL_RADIUS - 4,
+            vx: 0,
+            vy: 0,
+            radius: BRICK_BREAKER_CONFIG.BALL_RADIUS
+          }
+        ];
+        this.pushEvent({
+          id: Math.random().toString(36),
+          type: 'combo',
+          text: `🌟 LEVEL ${this.state.level} INITIATED! +250`,
+          x: this.state.arenaWidth / 2,
+          y: this.state.arenaHeight / 2,
+          color: '#00e5ff',
+          timestamp: now
+        });
+      }
     }
 
     if (typeof this.onStateUpdate === 'function') {

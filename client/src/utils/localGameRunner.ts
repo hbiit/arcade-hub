@@ -1,4 +1,4 @@
-import { GameId, PlayerSession, RoomState } from '../../../shared/src';
+import { DifficultyLevel, GameId, PlayerSession, RoomState } from '../../../shared/src';
 import { BlobBrawlEngine } from '../../../server/src/engines/BlobBrawlEngine';
 import { GlowballEngine } from '../../../server/src/engines/GlowballEngine';
 import { ACCGEngine } from '../../../server/src/engines/ACCGEngine';
@@ -9,16 +9,27 @@ import { CheckersEngine } from '../../../server/src/engines/CheckersEngine';
 import { CyberSlitherEngine } from '../../../server/src/engines/CyberSlitherEngine';
 import { GalaxyStrikeEngine } from '../../../server/src/engines/GalaxyStrikeEngine';
 
+export const TIMED_GAMES: GameId[] = ['blob', 'glowball', 'accg', 'mahjong-solitaire'];
+
 export class LocalGameRunner {
   private engine: any;
   private intervalId: any = null;
   private state: RoomState<any>;
   private onUpdate: (room: RoomState<any>) => void;
   private playerSocketId: string;
+  private difficulty: DifficultyLevel;
+  private hasTimer: boolean;
 
-  constructor(gameId: GameId, playerSession: PlayerSession, onUpdate: (room: RoomState<any>) => void) {
+  constructor(
+    gameId: GameId,
+    playerSession: PlayerSession,
+    onUpdate: (room: RoomState<any>) => void,
+    difficulty: DifficultyLevel = 'normal'
+  ) {
     this.onUpdate = onUpdate;
     this.playerSocketId = playerSession.socketId || 'local_player';
+    this.difficulty = difficulty;
+    this.hasTimer = TIMED_GAMES.includes(gameId);
 
     const roomCode = 'SOLO_' + Math.random().toString(36).substring(2, 6).toUpperCase();
 
@@ -49,6 +60,10 @@ export class LocalGameRunner {
       this.engine = new MahjongSolitaireEngine(roomCode, onEngineUpdate);
     }
 
+    if (typeof this.engine.setDifficulty === 'function') {
+      this.engine.setDifficulty(difficulty);
+    }
+
     const cleanSession: PlayerSession = {
       ...playerSession,
       socketId: this.playerSocketId
@@ -57,17 +72,17 @@ export class LocalGameRunner {
 
     const initialGameData = this.engine.getState();
 
-    const durations: Record<GameId, number> = {
-      blob: 60,
-      glowball: 90,
-      accg: 120,
-      mahjong: 90,
-      'mahjong-solitaire': 90,
-      brick_breaker: 90,
-      checkers: 180,
-      cyber_slither: 90,
-      galaxy_strike: 90
-    };
+    // Calculate match duration for timed games
+    let duration = 0;
+    if (gameId === 'blob') {
+      duration = difficulty === 'easy' ? 75 : difficulty === 'hard' ? 45 : 60;
+    } else if (gameId === 'glowball') {
+      duration = difficulty === 'easy' ? 90 : difficulty === 'hard' ? 75 : 90;
+    } else if (gameId === 'accg') {
+      duration = difficulty === 'easy' ? 120 : difficulty === 'hard' ? 90 : 120;
+    } else if (gameId === 'mahjong-solitaire') {
+      duration = difficulty === 'easy' ? 120 : difficulty === 'hard' ? 60 : 90;
+    }
 
     this.state = {
       roomCode,
@@ -76,7 +91,10 @@ export class LocalGameRunner {
       status: 'in_progress',
       players: { [this.playerSocketId]: cleanSession },
       gameData: initialGameData,
-      timeRemaining: durations[gameId] || 60
+      timeRemaining: duration,
+      elapsedSeconds: 0,
+      hasTimer: this.hasTimer,
+      difficulty
     };
   }
 
@@ -92,18 +110,96 @@ export class LocalGameRunner {
       const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
-      this.state.timeRemaining = Math.max(0, this.state.timeRemaining - dt);
-      this.engine.tick(dt);
-      this.state.gameData = this.engine.getState();
+      // Timer & Stopwatch management
+      if (this.hasTimer) {
+        this.state.timeRemaining = Math.max(0, this.state.timeRemaining - dt);
+      }
+      this.state.elapsedSeconds = (this.state.elapsedSeconds || 0) + dt;
 
-      if (this.state.timeRemaining <= 0) {
+      // Engine physics and AI tick
+      this.engine.tick(dt);
+      const data = this.engine.getState();
+      this.state.gameData = data;
+
+      // Check Termination & Victory Conditions
+
+      // 1. Timed Game expiration
+      if (this.hasTimer && this.state.timeRemaining <= 0) {
         this.state.status = 'ended';
         const sorted = Object.values(this.state.players).sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
         if (sorted.length > 0) {
           this.state.winnerSocketId = sorted[0].socketId;
         }
-        clearInterval(this.intervalId);
-        this.intervalId = null;
+        this.stop();
+        this.onUpdate({ ...this.state });
+        return;
+      }
+
+      // 2. Brick Breaker: Game Over (all lives lost) or Grand Victory (all levels cleared)
+      if (this.state.gameId === 'brick_breaker' && data.isGameOver) {
+        this.state.status = 'ended';
+        if (data.isVictory) {
+          this.state.winnerSocketId = this.playerSocketId;
+        }
+        this.stop();
+        this.onUpdate({ ...this.state });
+        return;
+      }
+
+      // 3. Checkers: Game Over (one side has 0 pieces or 0 moves)
+      if (this.state.gameId === 'checkers' && data.winner) {
+        this.state.status = 'ended';
+        if (data.winner === 'cyan') {
+          this.state.winnerSocketId = this.playerSocketId;
+        }
+        this.stop();
+        this.onUpdate({ ...this.state });
+        return;
+      }
+
+      // 4. Galaxy Strike: Game Over (all lives lost) or Grand Victory (Void Dreadnought destroyed)
+      if (this.state.gameId === 'galaxy_strike' && data.isGameOver) {
+        this.state.status = 'ended';
+        if (data.isVictory) {
+          this.state.winnerSocketId = this.playerSocketId;
+        }
+        this.stop();
+        this.onUpdate({ ...this.state });
+        return;
+      }
+
+      // 5. Traditional Mahjong: Hand completed (Hu) or Wall Exhausted
+      if (this.state.gameId === 'mahjong' && data.phase === 'ended') {
+        this.state.status = 'ended';
+        const humanSeat = data.seats?.find((s: any) => s.id === this.playerSocketId);
+        if (data.winnerSeat !== undefined && humanSeat && data.winnerSeat === humanSeat.seatIndex) {
+          this.state.winnerSocketId = this.playerSocketId;
+        }
+        this.stop();
+        this.onUpdate({ ...this.state });
+        return;
+      }
+
+      // 6. Mahjong Solitaire: All tiles cleared
+      if (this.state.gameId === 'mahjong-solitaire' && data.remainingTiles === 0) {
+        this.state.status = 'ended';
+        this.state.winnerSocketId = this.playerSocketId;
+        this.stop();
+        this.onUpdate({ ...this.state });
+        return;
+      }
+
+      // 7. Glowball: Target goals reached
+      if (this.state.gameId === 'glowball') {
+        const goalTarget = this.difficulty === 'easy' ? 3 : this.difficulty === 'hard' ? 7 : 5;
+        const p1 = Object.values(data.players || {})[0] as any;
+        if (p1 && p1.goals >= goalTarget) {
+          this.state.status = 'ended';
+          this.state.winnerSocketId = this.playerSocketId;
+          this.stop();
+          this.onUpdate({ ...this.state });
+          return;
+        }
       }
 
       this.onUpdate({ ...this.state });

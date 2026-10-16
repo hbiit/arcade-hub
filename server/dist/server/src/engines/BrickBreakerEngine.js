@@ -6,6 +6,25 @@ const src_1 = require("../../../shared/src");
 class BrickBreakerEngine extends BaseGameEngine_1.BaseGameEngine {
     nextId = 100;
     targetPaddleX = src_1.BRICK_BREAKER_CONFIG.ARENA_WIDTH / 2;
+    speedFactor = 1.0;
+    setDifficulty(difficulty) {
+        super.setDifficulty(difficulty);
+        if (difficulty === 'easy') {
+            this.state.lives = 4;
+            this.state.paddle.width = Math.round(src_1.BRICK_BREAKER_CONFIG.PADDLE_WIDTH * 1.25);
+            this.speedFactor = 0.85;
+        }
+        else if (difficulty === 'hard') {
+            this.state.lives = 2;
+            this.state.paddle.width = Math.round(src_1.BRICK_BREAKER_CONFIG.PADDLE_WIDTH * 0.85);
+            this.speedFactor = 1.2;
+        }
+        else {
+            this.state.lives = 3;
+            this.state.paddle.width = src_1.BRICK_BREAKER_CONFIG.PADDLE_WIDTH;
+            this.speedFactor = 1.0;
+        }
+    }
     initializeState() {
         this.targetPaddleX = src_1.BRICK_BREAKER_CONFIG.ARENA_WIDTH / 2;
         const bricks = this.generateBrickLayout(1);
@@ -42,6 +61,7 @@ class BrickBreakerEngine extends BaseGameEngine_1.BaseGameEngine {
             combo: 0,
             lives: src_1.BRICK_BREAKER_CONFIG.MAX_LIVES,
             level: 1,
+            maxLevels: 3,
             ballAttached: true,
             events: []
         };
@@ -315,10 +335,12 @@ class BrickBreakerEngine extends BaseGameEngine_1.BaseGameEngine {
                     });
                 }
                 else {
+                    this.state.isGameOver = true;
+                    this.state.isVictory = false;
                     this.pushEvent({
                         id: Math.random().toString(36),
                         type: 'life_lost',
-                        text: '💀 GAME OVER!',
+                        text: '💀 GAME OVER! OUT OF LIVES',
                         x: p.x,
                         y: p.y,
                         color: '#ef4444',
@@ -328,30 +350,46 @@ class BrickBreakerEngine extends BaseGameEngine_1.BaseGameEngine {
             }
         }
         // Level Clear Check
-        if (this.state.bricks.length === 0) {
-            this.state.level += 1;
-            this.state.score += 250;
-            this.state.bricks = this.generateBrickLayout(this.state.level);
-            this.state.ballAttached = true;
-            this.state.balls = [
-                {
-                    id: ++this.nextId,
-                    x: p.x,
-                    y: p.y - src_1.BRICK_BREAKER_CONFIG.BALL_RADIUS - 4,
-                    vx: 0,
-                    vy: 0,
-                    radius: src_1.BRICK_BREAKER_CONFIG.BALL_RADIUS
-                }
-            ];
-            this.pushEvent({
-                id: Math.random().toString(36),
-                type: 'combo',
-                text: `🌟 LEVEL ${this.state.level} CLEAR! +250`,
-                x: this.state.arenaWidth / 2,
-                y: this.state.arenaHeight / 2,
-                color: '#ffe600',
-                timestamp: now
-            });
+        if (this.state.bricks.length === 0 && !this.state.isGameOver) {
+            if (this.state.level >= this.state.maxLevels) {
+                this.state.isGameOver = true;
+                this.state.isVictory = true;
+                this.state.score += 1000;
+                this.pushEvent({
+                    id: Math.random().toString(36),
+                    type: 'combo',
+                    text: '🏆 ALL LEVELS CLEARED! GRAND VICTORY! +1000',
+                    x: this.state.arenaWidth / 2,
+                    y: this.state.arenaHeight / 2,
+                    color: '#ffe600',
+                    timestamp: now
+                });
+            }
+            else {
+                this.state.level += 1;
+                this.state.score += 250;
+                this.state.bricks = this.generateBrickLayout(this.state.level);
+                this.state.ballAttached = true;
+                this.state.balls = [
+                    {
+                        id: ++this.nextId,
+                        x: p.x,
+                        y: p.y - src_1.BRICK_BREAKER_CONFIG.BALL_RADIUS - 4,
+                        vx: 0,
+                        vy: 0,
+                        radius: src_1.BRICK_BREAKER_CONFIG.BALL_RADIUS
+                    }
+                ];
+                this.pushEvent({
+                    id: Math.random().toString(36),
+                    type: 'combo',
+                    text: `🌟 LEVEL ${this.state.level} INITIATED! +250`,
+                    x: this.state.arenaWidth / 2,
+                    y: this.state.arenaHeight / 2,
+                    color: '#00e5ff',
+                    timestamp: now
+                });
+            }
         }
         if (typeof this.onStateUpdate === 'function') {
             this.onStateUpdate(this.state);

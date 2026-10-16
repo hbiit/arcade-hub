@@ -1,5 +1,7 @@
 export type GameId = 'blob' | 'glowball' | 'accg' | 'mahjong' | 'mahjong-solitaire' | 'brick_breaker' | 'checkers' | 'cyber_slither' | 'galaxy_strike';
 
+export type DifficultyLevel = 'easy' | 'normal' | 'hard';
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -25,7 +27,10 @@ export interface GameMetadata {
   category?: 'Arena Action' | 'Tactical Strategy' | 'Party & Trivia' | 'Puzzle & Board' | 'Puzzle & Arcade';
   minPlayers: number;
   maxPlayers: number;
-  durationSeconds: number;
+  durationSeconds?: number;
+  hasTimer?: boolean;
+  winningCondition?: string;
+  levelsCount?: number;
   description: string;
   objective?: string;
   controls?: string;

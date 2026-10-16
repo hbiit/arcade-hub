@@ -1,4 +1,4 @@
-import { GameId, PlayerSession } from './entity';
+import { DifficultyLevel, GameId, PlayerSession } from './entity';
 
 export interface RoomState<TGameState = unknown> {
   roomCode: string;
@@ -9,6 +9,9 @@ export interface RoomState<TGameState = unknown> {
   gameData: TGameState;
   timeRemaining: number;
   winnerSocketId?: string;
+  difficulty?: DifficultyLevel;
+  hasTimer?: boolean;
+  elapsedSeconds?: number;
 }
 
 export interface PlayerInputPayload {

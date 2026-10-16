@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameId, GameMetadata, PlayerSession, RoomState, SOCKET_EVENTS } from '../../shared/src';
+import { GameId, GameMetadata, PlayerSession, RoomState, SOCKET_EVENTS, DifficultyLevel } from '../../shared/src';
 import { BlobBrawlCanvas } from './games/blob/BlobBrawlCanvas';
 import { GlowballCanvas } from './games/glowball/GlowballCanvas';
 import { ACCGCanvas } from './games/accg/ACCGCanvas';
@@ -70,7 +70,11 @@ const DEFAULT_GAMES: GameMetadata[] = [
     minPlayers: 1,
     maxPlayers: 6,
     durationSeconds: 60,
-    description: 'Fast 60s coin gathering frenzy! Bump opponents to steal coins, dodge smart AI bots, and grab powerups!'
+    hasTimer: true,
+    levelsCount: 1,
+    winningCondition: 'Accumulate the most gold coins before the timer expires while surviving knockouts.',
+    difficulties: ['easy', 'normal', 'hard'],
+    description: 'Fast coin gathering frenzy! Bump opponents to steal coins, dodge smart AI bots, and grab powerups!'
   },
   {
     id: 'glowball',
@@ -79,6 +83,10 @@ const DEFAULT_GAMES: GameMetadata[] = [
     minPlayers: 1,
     maxPlayers: 6,
     durationSeconds: 90,
+    hasTimer: true,
+    levelsCount: 1,
+    winningCondition: 'First player to score 5 goals wins instantly, or highest score when the 90s timer expires.',
+    difficulties: ['easy', 'normal', 'hard'],
     description: 'Neon Cyber Pong & Air Hockey with curve deflection physics, speed gates, and paddle powers!'
   },
   {
@@ -88,16 +96,11 @@ const DEFAULT_GAMES: GameMetadata[] = [
     minPlayers: 1,
     maxPlayers: 4,
     durationSeconds: 120,
+    hasTimer: true,
+    levelsCount: 1,
+    winningCondition: 'Destroy the enemy Command Core or hold the highest Core HP when the 120s tactical clock expires.',
+    difficulties: ['easy', 'normal', 'hard'],
     description: '3-Lane card assault defense! Deploy tactical battle cards to march down lanes and destroy the Command Core.'
-  },
-  {
-    id: 'mahjong',
-    title: 'Traditional 4-Player Mahjong (麻將)',
-    category: 'Puzzle & Board',
-    minPlayers: 1,
-    maxPlayers: 4,
-    durationSeconds: 90,
-    description: 'Authentic 136 ivory tiles with Chow (吃), Pung (碰), Kong (槓), and Hu (胡) against 3 AI table rivals.'
   },
   {
     id: 'mahjong-solitaire',
@@ -106,6 +109,10 @@ const DEFAULT_GAMES: GameMetadata[] = [
     minPlayers: 1,
     maxPlayers: 4,
     durationSeconds: 90,
+    hasTimer: true,
+    levelsCount: 1,
+    winningCondition: 'Clear all 36 matching ivory pairs from the board before the speed timer expires.',
+    difficulties: ['easy', 'normal', 'hard'],
     description: '3D multi-layered ivory tile matching puzzle with combo streaks, Lightning Zap, and Time Freeze.'
   },
   {
@@ -114,26 +121,12 @@ const DEFAULT_GAMES: GameMetadata[] = [
     category: 'Puzzle & Board',
     minPlayers: 1,
     maxPlayers: 4,
-    durationSeconds: 90,
-    description: 'Multi-ball neon demolition! Demolish crystal bricks with laser paddles, explosive plasma balls, and floor forcefields!'
-  },
-  {
-    id: 'checkers',
-    title: 'Neon Cyber Checkers',
-    category: 'Tactical Strategy',
-    minPlayers: 1,
-    maxPlayers: 2,
-    durationSeconds: 120,
-    description: 'Classic 8x8 draughts with crown king upgrades, multi-jump captures, and tactical AI bots or 2-player multiplayer!'
-  },
-  {
-    id: 'cyber_slither',
-    title: 'Cyber Slither 3000',
-    category: 'Arena Action',
-    minPlayers: 1,
-    maxPlayers: 6,
-    durationSeconds: 75,
-    description: 'Smooth analog cyber-serpent arena! Feast on glowing energy orbs, boost across lines, and trap rivals to trigger neon shockwave bursts!'
+    durationSeconds: 0,
+    hasTimer: false,
+    levelsCount: 3,
+    winningCondition: 'Demolish all crystal bricks across all 3 progressive levels without losing your remaining lives.',
+    difficulties: ['easy', 'normal', 'hard'],
+    description: 'Level-based neon demolition! Clear all 3 challenging levels with laser paddles, multiballs, and plasma forcefields!'
   },
   {
     id: 'galaxy_strike',
@@ -141,8 +134,51 @@ const DEFAULT_GAMES: GameMetadata[] = [
     category: 'Arena Action',
     minPlayers: 1,
     maxPlayers: 4,
-    durationSeconds: 90,
-    description: 'High-octane space shoot \'em up! Blast incoming swarm fighters, collect triple laser powerups, and take down the Void Dreadnought boss!'
+    durationSeconds: 0,
+    hasTimer: false,
+    levelsCount: 3,
+    winningCondition: 'Survive 3 enemy waves (Drones, Cruisers) and destroy the Void Dreadnought flagship boss!',
+    difficulties: ['easy', 'normal', 'hard'],
+    description: 'Level-based space shmup! Battle through 3 waves and eradicate the multi-turret Void Dreadnought flagship!'
+  },
+  {
+    id: 'checkers',
+    title: 'Neon Cyber Checkers',
+    category: 'Tactical Strategy',
+    minPlayers: 1,
+    maxPlayers: 2,
+    durationSeconds: 0,
+    hasTimer: false,
+    levelsCount: 1,
+    winningCondition: 'Capture all 12 opposing checkers or immobilize the rival so they have no legal moves.',
+    difficulties: ['easy', 'normal', 'hard'],
+    description: 'Turn-based classic 8x8 draughts with crown king upgrades, multi-jumps, and tactical AI bots!'
+  },
+  {
+    id: 'mahjong',
+    title: 'Traditional 4-Player Mahjong (麻將)',
+    category: 'Puzzle & Board',
+    minPlayers: 1,
+    maxPlayers: 4,
+    durationSeconds: 0,
+    hasTimer: false,
+    levelsCount: 1,
+    winningCondition: 'Complete a legal 14-tile winning hand (4 melds + 1 pair) and declare HU before the wall is exhausted.',
+    difficulties: ['easy', 'normal', 'hard'],
+    description: 'Authentic 136 ivory tiles with Chow (吃), Pung (碰), Kong (槓), and Hu (胡) against 3 AI table rivals.'
+  },
+  {
+    id: 'cyber_slither',
+    title: 'Cyber Slither 3000',
+    category: 'Arena Action',
+    minPlayers: 1,
+    maxPlayers: 6,
+    durationSeconds: 0,
+    hasTimer: false,
+    levelsCount: 1,
+    winningCondition: 'Survive on the neon grid, grow past 50 segments (1500 score), or eliminate rival worms without crashing.',
+    difficulties: ['easy', 'normal', 'hard'],
+    description: 'Survival arena! Feast on glowing energy orbs, boost across lines, and trap rivals into high-density bursts!'
   }
 ];
 
@@ -159,6 +195,10 @@ interface LeaderboardRecord {
 export const App: React.FC = () => {
   const [games, setGames] = useState<GameMetadata[]>(DEFAULT_GAMES);
   const [selectedGame, setSelectedGame] = useState<GameId>('blob');
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>(() => {
+    const saved = localStorage.getItem('arcade_difficulty');
+    return (saved === 'easy' || saved === 'normal' || saved === 'hard') ? (saved as DifficultyLevel) : 'normal';
+  });
   const [activeCategory, setActiveCategory] = useState<'all' | 'action' | 'strategy' | 'puzzle'>('all');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [activeRoom, setActiveRoom] = useState<RoomState<any> | null>(null);
@@ -375,7 +415,7 @@ export const App: React.FC = () => {
         SoundFX.playVictory();
         handleScoreSave(room);
       }
-    });
+    }, difficulty);
     localRunnerRef.current = runner;
     setActiveRoom(runner.getState());
     runner.start();
@@ -652,21 +692,111 @@ export const App: React.FC = () => {
             )}
           </div>
 
-          {/* Time Remaining Clock */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#94a3b8' }}>MATCH CLOCK:</span>
-            <span
-              style={{
-                fontSize: 22,
-                fontWeight: 900,
-                color: activeRoom.timeRemaining < 15 ? '#ef4444' : '#00e5ff',
-                fontFamily: "'Orbitron', monospace",
-                animation: activeRoom.timeRemaining < 10 ? 'pulse 0.5s infinite alternate' : 'none'
-              }}
-            >
-              {Math.ceil(activeRoom.timeRemaining)}s
-            </span>
-          </div>
+          {/* Match Status: Countdown Clock for Timed Games vs Levels/Waves/Turns for Untimed Games */}
+          {activeRoom.hasTimer !== false ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>MATCH CLOCK:</span>
+              <span
+                style={{
+                  fontSize: 22,
+                  fontWeight: 900,
+                  color: activeRoom.timeRemaining < 15 ? '#ef4444' : '#00e5ff',
+                  fontFamily: "'Orbitron', monospace",
+                  animation: activeRoom.timeRemaining < 10 ? 'pulse 0.5s infinite alternate' : 'none'
+                }}
+              >
+                {Math.ceil(activeRoom.timeRemaining)}s
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 8,
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  background: (activeRoom.difficulty || difficulty) === 'easy' ? 'rgba(16, 185, 129, 0.2)' : (activeRoom.difficulty || difficulty) === 'hard' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                  color: (activeRoom.difficulty || difficulty) === 'easy' ? '#10b981' : (activeRoom.difficulty || difficulty) === 'hard' ? '#ef4444' : '#eab308',
+                  border: `1px solid ${(activeRoom.difficulty || difficulty) === 'easy' ? '#10b981' : (activeRoom.difficulty || difficulty) === 'hard' ? '#ef4444' : '#eab308'}`
+                }}
+              >
+                {(activeRoom.difficulty || difficulty).toUpperCase()}
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {activeRoom.gameId === 'brick_breaker' && (
+                <>
+                  <span style={{ fontSize: 13, color: '#ffe600', fontWeight: 900, background: 'rgba(255,230,0,0.15)', padding: '4px 10px', borderRadius: 8, border: '1px solid #ffe600' }}>
+                    LEVEL {(gameData.level || 1)} / 3
+                  </span>
+                  <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 900 }}>
+                    ❤️ x {gameData.lives !== undefined ? gameData.lives : (gameData.players?.[socket.id || 'local_player']?.lives ?? 3)}
+                  </span>
+                </>
+              )}
+              {activeRoom.gameId === 'galaxy_strike' && (
+                <>
+                  <span style={{ fontSize: 13, color: '#00e5ff', fontWeight: 900, background: 'rgba(0,229,255,0.15)', padding: '4px 10px', borderRadius: 8, border: '1px solid #00e5ff' }}>
+                    WAVE {(gameData.wave || 1)} / 3
+                  </span>
+                  <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 900 }}>
+                    ❤️ x {gameData.player?.lives !== undefined ? gameData.player.lives : (gameData.players?.[socket.id || 'local_player']?.lives ?? 3)}
+                  </span>
+                </>
+              )}
+              {activeRoom.gameId === 'checkers' && (
+                <>
+                  <span style={{
+                    fontSize: 13,
+                    color: gameData.currentTurn === 'magenta' ? '#ff007f' : '#00e5ff',
+                    fontWeight: 900,
+                    background: 'rgba(255,255,255,0.1)',
+                    padding: '4px 10px',
+                    borderRadius: 8
+                  }}>
+                    TURN: {(gameData.currentTurn || 'cyan').toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 13, color: '#94a3b8' }}>
+                    ⏱️ Turn: {Math.ceil(gameData.turnTimeRemaining ?? 30)}s
+                  </span>
+                </>
+              )}
+              {activeRoom.gameId === 'mahjong' && (
+                <>
+                  <span style={{ fontSize: 13, color: '#10b981', fontWeight: 900, background: 'rgba(16,185,129,0.15)', padding: '4px 10px', borderRadius: 8, border: '1px solid #10b981' }}>
+                    🀄 WALL: {gameData.wallCount ?? 84} TILES
+                  </span>
+                  <span style={{ fontSize: 13, color: '#cbd5e1' }}>
+                    Turn: Seat {(gameData.currentTurn ?? 0) + 1}
+                  </span>
+                </>
+              )}
+              {activeRoom.gameId === 'cyber_slither' && (
+                <>
+                  <span style={{ fontSize: 13, color: '#00e5ff', fontWeight: 900, background: 'rgba(0,229,255,0.15)', padding: '4px 10px', borderRadius: 8, border: '1px solid #00e5ff' }}>
+                    SURVIVAL: {Math.floor(activeRoom.elapsedSeconds || 0)}s
+                  </span>
+                  <span style={{ fontSize: 13, color: '#ffe600', fontWeight: 900 }}>
+                    GOAL: 50 SEGMENTS
+                  </span>
+                </>
+              )}
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 8,
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  background: (activeRoom.difficulty || difficulty) === 'easy' ? 'rgba(16, 185, 129, 0.2)' : (activeRoom.difficulty || difficulty) === 'hard' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                  color: (activeRoom.difficulty || difficulty) === 'easy' ? '#10b981' : (activeRoom.difficulty || difficulty) === 'hard' ? '#ef4444' : '#eab308',
+                  border: `1px solid ${(activeRoom.difficulty || difficulty) === 'easy' ? '#10b981' : (activeRoom.difficulty || difficulty) === 'hard' ? '#ef4444' : '#eab308'}`
+                }}
+              >
+                {(activeRoom.difficulty || difficulty).toUpperCase()}
+              </span>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1046,6 +1176,73 @@ export const App: React.FC = () => {
         </button>
       </div>
 
+      {/* Combat Difficulty Level Selector */}
+      <div
+        style={{
+          background: '#111827',
+          border: '1px solid #1f2937',
+          borderRadius: 14,
+          padding: '16px 20px',
+          marginBottom: 20,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 14,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>🎚️</span>
+            <h4 style={{ margin: 0, color: '#fff', fontSize: 15, letterSpacing: 0.5 }}>
+              COMBAT DIFFICULTY LEVEL: <span style={{ color: difficulty === 'easy' ? '#10b981' : difficulty === 'hard' ? '#ef4444' : '#eab308' }}>{difficulty.toUpperCase()}</span>
+            </h4>
+          </div>
+          <small style={{ color: '#94a3b8', fontSize: 12, marginTop: 4, display: 'block' }}>
+            {difficulty === 'easy' && '🟢 Casual Operative: Slower bots, +1 Bonus Life, wider defensive paddles, and extended game timers.'}
+            {difficulty === 'normal' && '🟡 Standard Arcade: Authentic rules, balanced bot reaction speeds, standard lives & timers.'}
+            {difficulty === 'hard' && '🔴 Master Challenger: Hyper-aggressive AI, -1 Life penalty, smaller paddles, faster balls/bullets, and tighter timers!'}
+          </small>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, background: '#090d16', padding: 4, borderRadius: 10, border: '1px solid #1e293b' }}>
+          {(['easy', 'normal', 'hard'] as const).map(lvl => {
+            const isSelected = difficulty === lvl;
+            const meta = {
+              easy: { label: '🟢 EASY', bg: '#10b981', color: '#000' },
+              normal: { label: '🟡 NORMAL', bg: '#eab308', color: '#000' },
+              hard: { label: '🔴 HARD', bg: '#ef4444', color: '#fff' }
+            }[lvl];
+            return (
+              <button
+                key={lvl}
+                onClick={() => {
+                  SoundFX.playButton();
+                  setDifficulty(lvl);
+                  localStorage.setItem('arcade_difficulty', lvl);
+                  showToast(`⚙️ Difficulty set to ${lvl.toUpperCase()}`);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: isSelected ? meta.bg : 'transparent',
+                  color: isSelected ? meta.color : '#94a3b8',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 900,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  boxShadow: isSelected ? `0 0 12px ${meta.bg}66` : 'none'
+                }}
+              >
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Game Mode Filters */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <h3 style={{ color: '#fff', margin: 0, fontSize: 20 }}>Select Game Mode ({filteredGames.length})</h3>
@@ -1118,15 +1315,35 @@ export const App: React.FC = () => {
                 <h3 style={{ margin: '12px 0 6px', color: isSel ? '#00e5ff' : '#fff', fontSize: 18 }}>
                   {g.title}
                 </h3>
-                <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 16px', minHeight: 48, lineHeight: 1.4 }}>
+                <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 12px', minHeight: 44, lineHeight: 1.4 }}>
                   {g.description}
                 </p>
+
+                {/* Winning Condition Badge */}
+                <div style={{
+                  background: '#090d16',
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  marginBottom: 14,
+                  border: '1px solid #1e293b',
+                  fontSize: 12,
+                  color: '#cbd5e1',
+                  lineHeight: 1.35
+                }}>
+                  🎯 <strong style={{ color: '#ffe600' }}>Goal:</strong> {g.winningCondition || 'Achieve highest score!'}
+                </div>
               </div>
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 14 }}>
                   <span>👥 {g.minPlayers}–{g.maxPlayers} Players</span>
-                  <span>⏱️ {g.durationSeconds}s Match</span>
+                  <span style={{ color: g.hasTimer !== false ? '#00e5ff' : '#10b981', fontWeight: 700 }}>
+                    {g.hasTimer !== false
+                      ? `⏱️ ${g.durationSeconds}s Timer`
+                      : g.levelsCount && g.levelsCount > 1
+                      ? `📶 ${g.levelsCount} Progressive Levels`
+                      : '♾️ Untimed / Turns'}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
@@ -1236,15 +1453,20 @@ export const App: React.FC = () => {
     const manualContent: Record<string, {
       title: string;
       category: string;
+      timerType: string;
+      levelsInfo: string;
       objective: string;
       controls: string[];
       rules: string[];
       powerups: string[];
+      difficultyModes: { easy: string; normal: string; hard: string };
       victory: string;
     }> = {
       blob: {
         title: 'Blob Brawl',
         category: 'Arena Action Brawler',
+        timerType: '⏱️ TIMED GAME: 60s Fast Arcade Countdown',
+        levelsInfo: 'Single High-Intensity Arena Match',
         objective: 'Score the highest points by gathering gold coins and knocking out rival blobs before the 60-second arena timer ends.',
         controls: [
           '🖱️ Mouse Steering / Touch: Guide your blob towards coins and away from hazards',
@@ -1261,11 +1483,18 @@ export const App: React.FC = () => {
           '🧲 Coin Magnet: Automatically pulls in coins within a 140px radius',
           '🛡️ Titanium Shield: Deflects enemy collisions without losing coins or lives'
         ],
+        difficultyModes: {
+          easy: '75-second match timer, slower rival bots, +1 knockout shield buffer.',
+          normal: '60-second match timer, standard bot speed and collision physics.',
+          hard: '45-second high-pressure timer, aggressive AI pursuers, faster coin decay.'
+        },
         victory: 'The operative carrying the most coins when the timer expires wins 1st place on the Imperial Podium.'
       },
       glowball: {
         title: 'Glowball Overdrive',
         category: 'Neon Cyber Pong & Air Hockey',
+        timerType: '⏱️ TIMED GAME: 90s Match Clock (or First to 5 Goals Instant Win)',
+        levelsInfo: 'Continuous Match (First to Goal Target)',
         objective: 'Deflect the pulsating plasma glowball past your opponent’s goal line to rack up 5 match points.',
         controls: [
           '🖱️ Vertical Cursor / Touch Drag: Move your cyber paddle up and down along your defending goal line',
@@ -1280,11 +1509,18 @@ export const App: React.FC = () => {
           '📏 Paddle Extender: Doubles paddle height for 8 seconds',
           '💥 Overcharge Blast: Launches the ball at 2.5x speed on next contact'
         ],
+        difficultyModes: {
+          easy: 'Goal target: 3 goals, wider defensive paddle (+20%), slower AI paddle tracking.',
+          normal: 'Goal target: 5 goals, standard paddles, standard 90s match clock.',
+          hard: 'Goal target: 7 goals, tighter 60s timer, narrower paddle (-15%), hypersonic ball speed gates.'
+        },
         victory: 'Score 5 goals against the opponent or hold the highest score when the 90-second match clock hits 0.'
       },
       accg: {
         title: 'ACCG Tactical Siege',
         category: 'Lane Defense & Card Strategy',
+        timerType: '⏱️ TIMED GAME: 120s Tactical Clock (or Command Core Annihilation)',
+        levelsInfo: '3-Lane Battlefield Base Siege',
         objective: 'Deploy tactical battle cards from your deck to march down lanes and destroy the enemy Command Core.',
         controls: [
           '🖱️ Click to Select Card: Choose an operative from your tactical deck',
@@ -1299,11 +1535,18 @@ export const App: React.FC = () => {
           '🛡️ Shield Drone: Protects ground troops with an energy absorption barrier',
           '⚡ EMP Strike: Stuns all enemy units in a lane for 4 seconds'
         ],
+        difficultyModes: {
+          easy: 'Faster tactical energy recharge (+20%), slower enemy spawn waves.',
+          normal: 'Standard 1 energy/sec recharge rate, balanced AI troop deployments.',
+          hard: 'Aggressive enemy dual-lane rushes, higher Command Core damage multiplier.'
+        },
         victory: 'Destroy the enemy Command Tower or have higher remaining tower health at time expiration.'
       },
       mahjong: {
         title: 'Traditional 4-Player Mahjong (麻將)',
         category: 'Imperial Table Strategy',
+        timerType: '♾️ UNTIMED GAME: Plays until HU (Winning Hand) or 136-Tile Wall Depletion',
+        levelsInfo: 'Traditional 4-Wind Round (East / South / West / North)',
         objective: 'Form a complete 14-tile winning hand composed of 4 Melds (Chow / Pung / Kong) plus 1 Pair (Eyes).',
         controls: [
           '🖱️ Left Click Tile: Select tile from hand (elevates tile)',
@@ -1321,11 +1564,18 @@ export const App: React.FC = () => {
           '🀄 Authentic ivory tile visuals with traditional red/green lacquer glyphs',
           '🤖 3 Autonomous AI table rivals that think and discard intelligently'
         ],
+        difficultyModes: {
+          easy: 'Generous Chow/Pung prompts, table hints highlighted in gold.',
+          normal: 'Standard authentic 4-player table play against smart heuristic discard bots.',
+          hard: 'Expert tournament table: bots calculate concealed tenpai waits and defensive discards.'
+        },
         victory: 'First player to declare HU or assemble 4 melds + 1 pair wins the table pot.'
       },
       'mahjong-solitaire': {
         title: 'Mahjong Solitaire Speed Match',
         category: 'Cyber Tile Puzzle',
+        timerType: '⏱️ TIMED GAME: 90s Speed Matching Countdown',
+        levelsInfo: '3-Tier Turtle Formation (36 Ivory Tiles)',
         objective: 'Clear all 36 authentic ivory tiles by matching free pairs before the 90-second clock expires.',
         controls: [
           '🖱️ Click Free Tile: Selects tile (illuminates in bright golden border)',
@@ -1341,12 +1591,19 @@ export const App: React.FC = () => {
           '❄️ Time Freeze: Freezes the match timer for 10 seconds (Cost: 1 Charge)',
           '🔀 Cosmic Shuffle: Re-arranges remaining tiles to guarantee open matching paths'
         ],
+        difficultyModes: {
+          easy: '120-second speed clock, 3 free Lightning Zaps and 3 Shuffles.',
+          normal: '90-second speed clock, 2 Lightning Zaps and 2 Shuffles.',
+          hard: '60-second hyper speed clock, 1 Lightning Zap, no second chances.'
+        },
         victory: 'Clear all tiles from the board to achieve 100% board clearance and maximum bonus points.'
       },
       brick_breaker: {
         title: 'Break Breaker Overcharge',
         category: 'Puzzle & Arcade Demolition',
-        objective: 'Demolish all neon crystal bricks with high-velocity plasma balls before your 3 lives run out or the 90s timer expires.',
+        timerType: '♾️ UNTIMED GAME: No match timer! Progress through 3 Levels using Lives',
+        levelsInfo: 'Level 1: Crystal Prism Grid • Level 2: Armored Diamond Matrix • Level 3: Overcharged Quantum Wall',
+        objective: 'Demolish all neon crystal bricks across all 3 levels with high-velocity plasma balls before your lives run out.',
         controls: [
           '🖱️ Mouse Horizontal / Touch Drag: Glide paddle left and right across your defense zone',
           '⚡ Spacebar / Click / Launch: Launch resting balls into high-velocity trajectory'
@@ -1354,18 +1611,26 @@ export const App: React.FC = () => {
         rules: [
           'Ball deflects off paddle with angular momentum—hitting edges creates sharp angles.',
           'Crystal bricks have differing hit points and drop valuable tactical powerups.',
-          'Clearing all bricks immediately completes the wave and triggers high-score multiplier bonuses.'
+          'Clearing all bricks immediately advances to the next level with bonus multiplier score.',
+          'Losing a ball costs 1 life. If all lives are lost, the game ends in defeat.'
         ],
         powerups: [
           '🔴 Multi-Ball: Triples the active plasma balls in play',
           '📏 Laser Paddle: Expands paddle width by 60% with side-mounted blaster cannons',
           '🛡️ Floor Shield: Forcefield barrier that saves one lost ball from falling'
         ],
-        victory: 'Demolish the crystal brick matrix to score maximum points and conquer the high-score leaderboard.'
+        difficultyModes: {
+          easy: '4 Lives, paddle width +25%, ball speed 0.85x, forgiving deflection physics.',
+          normal: '3 Lives, standard paddle width, progressive level ball acceleration.',
+          hard: '2 Lives, paddle width -15%, ball speed 1.2x, dense armored bricks.'
+        },
+        victory: 'Demolish the crystal brick matrix across all 3 levels to achieve Grand Arcade Victory!'
       },
       checkers: {
         title: 'Neon Cyber Checkers',
         category: 'Tactical Draughts Strategy',
+        timerType: '♾️ UNTIMED GAME: No match timer! Per-turn 30s Strategic Clock',
+        levelsInfo: 'Full 8x8 Board Supremacy Match',
         objective: 'Capture or immobilize all enemy checkers to achieve total board supremacy.',
         controls: [
           '🖱️ Click Piece: Select active checker piece (shows legal move and jump paths)',
@@ -1381,11 +1646,18 @@ export const App: React.FC = () => {
           '👑 King Cyber Crown: Unlocks multi-directional diagonal attack movement',
           '🤖 Heuristic AI Bot: Evaluates piece differential, center control, and king safety'
         ],
+        difficultyModes: {
+          easy: 'Novice Bot: 45% casual moves, forgiving tactical positioning.',
+          normal: 'Skilled Bot: Evaluates piece captures, king promotions, and center squares.',
+          hard: 'Master Bot: Minimax heuristic engine with deep lookahead, king protection, and trap setups.'
+        },
         victory: 'Capture all 12 opposing checkers or force the rival into an inescapable position with zero legal moves.'
       },
       cyber_slither: {
         title: 'Cyber Slither 3000',
         category: 'Arena Action Slither',
+        timerType: '♾️ UNTIMED GAME: Continuous Survival Arena (Elapsed Stopwatch)',
+        levelsInfo: 'Continuous Neon Arena (Win at 50 Segments / 1500 Score)',
         objective: 'Grow your cyber-serpent to massive lengths by consuming glowing plasma pellets while cutting off rival snakes.',
         controls: [
           '🖱️ Mouse Steering / Touch: Smoothly direct your serpent head toward energy pellets and away from hazards',
@@ -1401,12 +1673,19 @@ export const App: React.FC = () => {
           '⚡ Afterburner Overdrive: High-speed boost with minimal length burn',
           '💥 Plasma Shockwave: Scatters nearby hazards and forces AI rivals away'
         ],
-        victory: 'Survive the 75-second arena battle and achieve the longest serpent and highest score.'
+        difficultyModes: {
+          easy: 'Slower rival worms, abundant glowing plasma pellets (85+), gentle corner bouncing.',
+          normal: 'Standard rival speed, 65 pellets, dynamic boosting AI.',
+          hard: 'Hyper-aggressive encirclement bots, fast cutting maneuvers, high pellet burn on boost.'
+        },
+        victory: 'Grow to 50 segments (1500 score) or outlast all rival cyber-serpents on the grid.'
       },
       galaxy_strike: {
         title: 'Neon Galaxy Strike',
         category: 'Sci-Fi Space Shoot \'Em Up',
-        objective: 'Pilot your stellar fighter through waves of alien swarm drones and annihilate the Void Dreadnought flagship.',
+        timerType: '♾️ UNTIMED GAME: No match timer! Progress through 3 Waves & Boss Battle using Lives',
+        levelsInfo: 'Wave 1: Swarm Drones • Wave 2: Heavy Cruisers • Wave 3: Void Dreadnought Flagship Boss',
+        objective: 'Pilot your stellar fighter through 3 progressive waves and eradicate the Void Dreadnought flagship.',
         controls: [
           '🖱️ Mouse / Touch Drag: Maneuver your starfighter across the starfield',
           '⚡ Auto-Blaster / Click: Continuous rapid-fire plasma blasters at 60 FPS'
@@ -1414,14 +1693,20 @@ export const App: React.FC = () => {
         rules: [
           'Destroying enemy drones yields points, score multipliers, and powerup drops.',
           'Evade incoming enemy laser fire and suicide dive bombers.',
-          'Boss Dreadnought spawns at Wave 3 with multi-phase laser turrets and heavy armor shields.'
+          'Wave 1 introduces agile drones; Wave 2 introduces armored cruisers; Wave 3 unleashes the Void Dreadnought flagship!',
+          'Losing your starfighter costs 1 life. Run out of lives and the mission fails.'
         ],
         powerups: [
           '🔱 Triple Plasma Blaster: 3-way spread fire for total screen clearance',
           '🛡️ Deflector Energy Shield: Absorbs 2 direct enemy bullet hits without damage',
           '💣 EMP Nova Bomb: Clears all enemy projectiles from the screen in a flash'
         ],
-        victory: 'Defeat the Void Dreadnought boss and reach the highest starfighter flight score.'
+        difficultyModes: {
+          easy: '4 Starfighter Lives, spread cannon unlocked by default, slower enemy bullets.',
+          normal: '3 Starfighter Lives, standard enemy bullet speed, powerups drop on kill.',
+          hard: '2 Starfighter Lives, rapid-fire enemy bullets, aggressive kamikaze dive bombers.'
+        },
+        victory: 'Annihilate the Void Dreadnought flagship boss in Wave 3 to achieve Stellar Supremacy!'
       }
     };
 
@@ -1436,7 +1721,7 @@ export const App: React.FC = () => {
               <h2 style={{ margin: 0, color: '#00e5ff', fontSize: 22, letterSpacing: 1.5 }}>
                 📖 GAME MANUAL & COMBAT RULES
               </h2>
-              <small style={{ color: '#94a3b8' }}>Comprehensive rules, controls, and victory guidelines</small>
+              <small style={{ color: '#94a3b8' }}>Comprehensive rules, timer structures, levels, and difficulty settings</small>
             </div>
             <button onClick={() => setActiveModal('none')} style={closeBtnStyle}>✕</button>
           </div>
@@ -1466,16 +1751,55 @@ export const App: React.FC = () => {
 
           {/* Manual Body */}
           <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: 6 }}>
+            {/* Header Card */}
             <div style={{ background: '#090d16', padding: 18, borderRadius: 12, marginBottom: 16, border: '1px solid #1e293b' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                 <h3 style={{ margin: 0, color: '#ffe600', fontSize: 18 }}>{current.title}</h3>
                 <span style={{ fontSize: 12, background: '#1e293b', color: '#00e5ff', padding: '3px 10px', borderRadius: 10 }}>
                   {current.category}
                 </span>
               </div>
-              <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14, lineHeight: 1.5 }}>
+              <p style={{ margin: '0 0 12px', color: '#cbd5e1', fontSize: 14, lineHeight: 1.5 }}>
                 {current.objective}
               </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginTop: 12 }}>
+                <div style={{ background: '#111827', padding: '10px 14px', borderRadius: 8, border: '1px solid #1f2937' }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>
+                    Timer Structure
+                  </span>
+                  <strong style={{ color: current.timerType.includes('TIMED') ? '#00e5ff' : '#10b981', fontSize: 13 }}>
+                    {current.timerType}
+                  </strong>
+                </div>
+                <div style={{ background: '#111827', padding: '10px 14px', borderRadius: 8, border: '1px solid #1f2937' }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>
+                    Level / Progression
+                  </span>
+                  <strong style={{ color: '#ffe600', fontSize: 13 }}>
+                    {current.levelsInfo}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Difficulty Modes Breakdown */}
+            <div style={{ background: '#0d131f', padding: 16, borderRadius: 12, marginBottom: 16, border: '1px solid #1e293b' }}>
+              <h4 style={{ color: '#00e5ff', margin: '0 0 10px', fontSize: 14 }}>🎚️ DIFFICULTY MODES (EASY / NORMAL / HARD)</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                <div style={{ background: '#111827', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid #10b981' }}>
+                  <strong style={{ color: '#10b981' }}>🟢 EASY MODE: </strong>
+                  <span style={{ color: '#cbd5e1' }}>{current.difficultyModes.easy}</span>
+                </div>
+                <div style={{ background: '#111827', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid #eab308' }}>
+                  <strong style={{ color: '#eab308' }}>🟡 NORMAL MODE: </strong>
+                  <span style={{ color: '#cbd5e1' }}>{current.difficultyModes.normal}</span>
+                </div>
+                <div style={{ background: '#111827', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid #ef4444' }}>
+                  <strong style={{ color: '#ef4444' }}>🔴 HARD MODE: </strong>
+                  <span style={{ color: '#cbd5e1' }}>{current.difficultyModes.hard}</span>
+                </div>
+              </div>
             </div>
 
             {/* Controls */}
@@ -1488,7 +1812,7 @@ export const App: React.FC = () => {
 
             {/* Rules */}
             <div style={{ marginBottom: 16 }}>
-              <h4 style={{ color: '#00e5ff', margin: '0 0 8px', fontSize: 14 }}>📜 RULES & MECHANICS</h4>
+              <h4 style={{ color: '#00e5ff', margin: '0 0 8px', fontSize: 14 }}>📜 RULES & PROGRESSION</h4>
               <ul style={{ margin: 0, paddingLeft: 20, color: '#cbd5e1', fontSize: 13, lineHeight: 1.8 }}>
                 {current.rules.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
@@ -1504,7 +1828,7 @@ export const App: React.FC = () => {
 
             {/* Victory Condition */}
             <div style={{ background: '#1e293b', padding: 14, borderRadius: 10, border: '1px solid #334155' }}>
-              <h4 style={{ color: '#ffe600', margin: '0 0 4px', fontSize: 13 }}>🏆 VICTORY CONDITION</h4>
+              <h4 style={{ color: '#ffe600', margin: '0 0 4px', fontSize: 13 }}>🏆 WINNING CONDITION</h4>
               <p style={{ margin: 0, color: '#fff', fontSize: 13 }}>{current.victory}</p>
             </div>
           </div>

@@ -1,16 +1,21 @@
-import { PlayerInputPayload, PlayerSession } from '../../../shared/src';
+import { DifficultyLevel, PlayerInputPayload, PlayerSession } from '../../../shared/src';
 
 export abstract class BaseGameEngine<TState = any> {
   protected roomCode: string;
   protected players: Map<string, PlayerSession>;
   protected state: TState;
   protected onStateUpdate: (state: TState) => void;
+  public difficulty: DifficultyLevel = 'normal';
 
   constructor(roomCode: string = 'SOLO_ROOM', onStateUpdate: (state: TState) => void = () => {}) {
     this.roomCode = roomCode || 'SOLO_ROOM';
     this.players = new Map();
     this.onStateUpdate = typeof onStateUpdate === 'function' ? onStateUpdate : () => {};
     this.state = this.initializeState();
+  }
+
+  public setDifficulty(difficulty: DifficultyLevel): void {
+    this.difficulty = difficulty;
   }
 
   public registerPlayer(player: PlayerSession): void {

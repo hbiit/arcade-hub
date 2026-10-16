@@ -1,5 +1,5 @@
 import { BaseGameEngine } from './BaseGameEngine';
-import { CHECKERS_CONFIG, PlayerInputPayload, PlayerSession } from '../../../shared/src';
+import { CHECKERS_CONFIG, PlayerInputPayload, PlayerSession, DifficultyLevel } from '../../../shared/src';
 
 export type PieceColor = 'cyan' | 'magenta';
 
@@ -302,6 +302,10 @@ export class CheckersEngine extends BaseGameEngine<CheckersState> {
     }
   }
 
+  public override setDifficulty(difficulty: DifficultyLevel): void {
+    super.setDifficulty(difficulty);
+  }
+
   private executeBotTurn() {
     const magentaPieces = this.state.pieces.filter(p => p.color === 'magenta');
     let allMoves: Array<{ piece: CheckerPiece; move: CheckersMove }> = [];
@@ -318,14 +322,30 @@ export class CheckersEngine extends BaseGameEngine<CheckersState> {
       return;
     }
 
+    // Easy: 45% chance to play casual random move
+    if (this.difficulty === 'easy' && Math.random() < 0.45) {
+      const chosen = allMoves[Math.floor(Math.random() * allMoves.length)];
+      this.executeMove(chosen.move);
+      return;
+    }
+
     // Prioritize captures > king promotions > center advances
     const captures = allMoves.filter(m => m.move.jumpedPieceId);
     if (captures.length > 0) {
       const chosen = captures[Math.floor(Math.random() * captures.length)];
       this.executeMove(chosen.move);
     } else {
-      // Advance forward
-      allMoves.sort((a, b) => b.move.toRow - a.move.toRow);
+      if (this.difficulty === 'hard') {
+        // Hard AI: Center control and king promotion priority
+        allMoves.sort((a, b) => {
+          let scoreA = (a.move.toRow === 7 ? 50 : 0) + (a.move.toCol >= 2 && a.move.toCol <= 5 ? 20 : 0);
+          let scoreB = (b.move.toRow === 7 ? 50 : 0) + (b.move.toCol >= 2 && b.move.toCol <= 5 ? 20 : 0);
+          return (scoreB + b.move.toRow * 2) - (scoreA + a.move.toRow * 2);
+        });
+      } else {
+        // Normal AI: Advance forward
+        allMoves.sort((a, b) => b.move.toRow - a.move.toRow);
+      }
       const chosen = allMoves[0];
       this.executeMove(chosen.move);
     }
