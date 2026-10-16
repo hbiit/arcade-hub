@@ -12,9 +12,51 @@ import { LocalGameRunner } from './utils/localGameRunner';
 
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 const socketUrl = isLocalhost ? 'http://localhost:4000' : '';
+
+class MockSocket {
+  public id: string = 'local_player';
+  public connected: boolean = false;
+  private listeners: Record<string, Function[]> = {};
+
+  on(event: string, fn: Function) {
+    if (!this.listeners[event]) this.listeners[event] = [];
+    this.listeners[event].push(fn);
+    return this;
+  }
+
+  off(event: string, fn?: Function) {
+    if (!fn) {
+      delete this.listeners[event];
+    } else if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(f => f !== fn);
+    }
+    return this;
+  }
+
+  emit(event: string, ...args: any[]) {
+    const lastArg = args[args.length - 1];
+    if (typeof lastArg === 'function') {
+      if (event === SOCKET_EVENTS.HUB_LIST_GAMES) {
+        lastArg(DEFAULT_GAMES);
+      }
+    }
+    const handlers = this.listeners[event];
+    if (handlers) {
+      handlers.forEach(h => {
+        try { h(...args); } catch (e) { console.error(e); }
+      });
+    }
+    return this;
+  }
+
+  connect() { return this; }
+  disconnect() { return this; }
+  close() { return this; }
+}
+
 const socket: Socket = isLocalhost
   ? io(socketUrl, { autoConnect: true, reconnectionAttempts: 2, timeout: 2500 })
-  : io({ autoConnect: false });
+  : (new MockSocket() as unknown as Socket);
 
 const DEFAULT_GAMES: GameMetadata[] = [
   {
@@ -167,9 +209,44 @@ export const App: React.FC = () => {
     const entries = Object.values<any>(room.gameData?.players || room.gameData?.units || room.gameData?.seats || {});
     const sorted = [...entries].sort((a, b) => (b.coinsCarried || b.score || 0) - (a.coinsCarried || a.score || 0));
     const winner = sorted[0];
-    const isWinner = winner && winner.name === playerName;
+    const isWinner = winner && (winner.name === playerName || winner.id === (socket.id || 'local_player'));
     const finalScore = winner ? (winner.coinsCarried !== undefined ? winner.coinsCarried : winner.score || 0) : 0;
     saveStartNgScore(finalScore, isWinner ? 1 : 0);
+
+    // Save & update local leaderboard
+    try {
+      const saved = localStorage.getItem('arcade_local_leaderboard');
+      let currentRecords: LeaderboardRecord[] = saved ? JSON.parse(saved) : [
+        { userId: 'u1', displayName: 'Nova_Champion', favoriteColor: '#00e5ff', wins: 28, totalScore: 14200, matchesPlayed: 32, level: 14 },
+        { userId: 'u2', displayName: 'Master_Chen', favoriteColor: '#ff007f', wins: 24, totalScore: 12650, matchesPlayed: 29, level: 12 },
+        { userId: 'u3', displayName: playerName || 'Cyber_Striker', favoriteColor: playerColor || '#00ffaa', wins: 19, totalScore: 9800, matchesPlayed: 22, level: 10 },
+        { userId: 'u4', displayName: 'Vortex_Rider', favoriteColor: '#ffe600', wins: 15, totalScore: 8200, matchesPlayed: 18, level: 8 },
+        { userId: 'u5', displayName: 'Pixel_Phantom', favoriteColor: '#9d00ff', wins: 11, totalScore: 6100, matchesPlayed: 14, level: 6 },
+      ];
+      let userRec = currentRecords.find(r => r.displayName === playerName);
+      if (userRec) {
+        userRec.matchesPlayed += 1;
+        if (isWinner) userRec.wins += 1;
+        userRec.totalScore += finalScore;
+        userRec.level = Math.floor(userRec.totalScore / 1000) + 1;
+      } else {
+        userRec = {
+          userId: 'user_' + Date.now(),
+          displayName: playerName,
+          favoriteColor: playerColor,
+          wins: isWinner ? 1 : 0,
+          totalScore: finalScore,
+          matchesPlayed: 1,
+          level: Math.floor(finalScore / 1000) + 1
+        };
+        currentRecords.push(userRec);
+      }
+      currentRecords.sort((a, b) => b.totalScore - a.totalScore);
+      localStorage.setItem('arcade_local_leaderboard', JSON.stringify(currentRecords));
+      setLeaderboardData(currentRecords);
+    } catch {
+      // ignore
+    }
   };
 
   const showToast = (msg: string) => {
@@ -195,16 +272,40 @@ export const App: React.FC = () => {
   };
 
   const fetchLeaderboard = async () => {
-    try {
-      const res = await fetch('http://localhost:4000/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        setLeaderboardData(data);
-        return;
+    if (isLocalhost) {
+      try {
+        const res = await fetch('http://localhost:4000/api/leaderboard');
+        if (res.ok) {
+          const data = await res.json();
+          setLeaderboardData(data);
+          return;
+        }
+      } catch {
+        // Fallback to local
       }
-    } catch {
-      // Fallback
     }
+
+    const saved = localStorage.getItem('arcade_local_leaderboard');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLeaderboardData(parsed);
+          return;
+        }
+      } catch {
+        // Fallback to defaults
+      }
+    }
+
+    const defaultLeaderboard: LeaderboardRecord[] = [
+      { userId: 'u1', displayName: 'Nova_Champion', favoriteColor: '#00e5ff', wins: 28, totalScore: 14200, matchesPlayed: 32, level: 14 },
+      { userId: 'u2', displayName: 'Master_Chen', favoriteColor: '#ff007f', wins: 24, totalScore: 12650, matchesPlayed: 29, level: 12 },
+      { userId: 'u3', displayName: playerName || 'Cyber_Striker', favoriteColor: playerColor || '#00ffaa', wins: 19, totalScore: 9800, matchesPlayed: 22, level: 10 },
+      { userId: 'u4', displayName: 'Vortex_Rider', favoriteColor: '#ffe600', wins: 15, totalScore: 8200, matchesPlayed: 18, level: 8 },
+      { userId: 'u5', displayName: 'Pixel_Phantom', favoriteColor: '#9d00ff', wins: 11, totalScore: 6100, matchesPlayed: 14, level: 6 },
+    ];
+    setLeaderboardData(defaultLeaderboard);
   };
 
   const openLeaderboard = () => {
